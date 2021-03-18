@@ -223,30 +223,46 @@ Phong reflectRayTrace3(RayTrace previous, vec3 direction) {
     return reflectPhong;
 }
 
+const int antialis = 2;
+
 void main() {
     float screenMinHalf = float(min(screenSize.x, screenSize.y)) * 0.5;
     float imageRatio = screenMinHalf / 200.0;
     vec2 screenCenter = vec2(screenSize) * 0.5;
     vec2 imageOrigin = screenCenter - vec2(screenMinHalf);
+    fragmentColor = vec4(0.0, 0.0, 0.0, 0.0);
 
-    vec2 sceenCoords = (gl_FragCoord.xy - imageOrigin) / imageRatio;
-    Ray ray;
-    ray.origin = vec3(200.0, 200.0, 1000.0);
-    ray.direction = normalize(vec3(sceenCoords, 0.0) - ray.origin);
+    float divisor = 1.0 / float(antialis);
+    float zero = 0.0;
+    gl_FragDepth = 1.0 / zero;
 
-    int objectCount = textureSize(spheres, 0).y;
-    RayTrace cameraTrace = rayTrace(ray);
-    if (isinf(cameraTrace.distance)) {
-        // discard;
-        fragmentColor = vec4(0.0, 0.0, 0.0, 0.0);
-        return;
+    for (int aliasX = 0; aliasX < antialis; ++aliasX) {
+        for (int aliasY = 0; aliasY < antialis; ++aliasY) {
+            vec2 fragmentCoords = gl_FragCoord.xy;
+            vec2 offsetAntialias = vec2(float(aliasX + 1) * divisor - divisor / 2.0 - 0.5, float(aliasY + 1) * divisor - divisor / 2.0 - 0.5);
+            fragmentCoords += offsetAntialias;
+            vec2 sceenCoords = (fragmentCoords - imageOrigin) / imageRatio;
+            Ray ray;
+            ray.origin = vec3(200.0, 200.0, 1000.0);
+            ray.direction = normalize(vec3(sceenCoords, 0.0) - ray.origin);
+
+            int objectCount = textureSize(spheres, 0).y;
+            RayTrace cameraTrace = rayTrace(ray);
+            if (isinf(cameraTrace.distance)) {
+                // discard;
+                fragmentColor = vec4(0.0, 0.0, 0.0, 0.0);
+                return;
+            }
+            gl_FragDepth = min(gl_FragDepth, cameraTrace.distance);
+
+            Phong cameraPhong = illuminate(cameraTrace, -ray.direction);
+
+            Phong reflectedPhong = reflectRayTrace3(cameraTrace, ray.direction);
+            cameraPhong.specular += cameraTrace.material.specular * (reflectedPhong.ambient + reflectedPhong.diffuse + reflectedPhong.specular);
+            fragmentColor.rgb += cameraPhong.ambient + cameraPhong.diffuse + cameraPhong.specular;
+            fragmentColor.a += 1.0;
+        }
     }
-    gl_FragDepth = cameraTrace.distance;
 
-    Phong cameraPhong = illuminate(cameraTrace, -ray.direction);
-
-    Phong reflectedPhong = reflectRayTrace3(cameraTrace, ray.direction);
-    cameraPhong.specular += cameraTrace.material.specular * (reflectedPhong.ambient + reflectedPhong.diffuse + reflectedPhong.specular);
-
-    fragmentColor = vec4(cameraPhong.ambient + cameraPhong.diffuse + cameraPhong.specular, 1.0);
+    fragmentColor /= float(antialis * antialis);
 }
