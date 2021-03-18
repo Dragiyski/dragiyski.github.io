@@ -57,6 +57,7 @@ function paint() {
     raytrace.program.uniform.spheres.setUniformValue(0);
     raytrace.program.uniform.lights.setUniformValue(1);
     raytrace.program.uniform.antialias.setUniformValue(raytrace.antialias);
+    raytrace.program.uniform.reflectionCount.setUniformValue(raytrace.reflect);
 
     gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_BYTE, 0);
 
@@ -184,12 +185,19 @@ async function main() {
     const gl = canvas.getContext('webgl2');
     const raytrace = canvas.raytrace = canvas.raytrace ?? {};
     raytrace.antialias = 1;
+    raytrace.reflect = 2;
     {
         const url = new URL(window.location.href);
         if (url.searchParams.has('antialias')) {
             let maybeAntialias = parseInt(url.searchParams.get('antialias'));
             if (Number.isSafeInteger(maybeAntialias) && maybeAntialias >= 1) {
                 raytrace.antialias = Math.min(16, maybeAntialias);
+            }
+        }
+        if (url.searchParams.has('reflect')) {
+            let maybe = parseInt(url.searchParams.get('reflect'));
+            if (Number.isSafeInteger(maybe) && maybe >= 0) {
+                raytrace.reflect = Math.min(8, maybe);
             }
         }
     }

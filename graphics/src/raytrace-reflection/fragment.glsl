@@ -19,6 +19,9 @@ uniform sampler2D spheres;
 uniform sampler2D lights;
 uniform int antialias;
 
+const int maxReflectionCount = 8;
+uniform int reflectionCount;
+
 struct Material {
     float ambient;
     float diffuse;
@@ -177,53 +180,6 @@ Phong illuminate(RayTrace trace, vec3 viewVector) {
     return phong;
 }
 
-Phong noPhong() {
-    Phong phong;
-    phong.ambient = vec3(0.0, 0.0, 0.0);
-    phong.diffuse = vec3(0.0, 0.0, 0.0);
-    phong.specular = vec3(0.0, 0.0, 0.0);
-    return phong;
-}
-
-Phong reflectRayTrace1(RayTrace previous, vec3 direction) {
-    Ray reflectRay;
-    reflectRay.direction = reflect(direction, previous.normal);
-    reflectRay.origin = previous.hitPoint + 0.5 * reflectRay.direction;
-    RayTrace reflectTrace = rayTrace(reflectRay);
-    if(isinf(reflectTrace.distance)) {
-        return noPhong();
-    }
-    return illuminate(reflectTrace, -reflectRay.direction);
-}
-
-Phong reflectRayTrace2(RayTrace previous, vec3 direction) {
-    Ray reflectRay;
-    reflectRay.direction = reflect(direction, previous.normal);
-    reflectRay.origin = previous.hitPoint + 0.5 * reflectRay.direction;
-    RayTrace reflectTrace = rayTrace(reflectRay);
-    if(isinf(reflectTrace.distance)) {
-        return noPhong();
-    }
-    Phong reflectPhong = illuminate(reflectTrace, -reflectRay.direction);
-    Phong reflectedPhong = reflectRayTrace1(reflectTrace, reflectRay.direction);
-    reflectPhong.specular += reflectTrace.material.specular * (reflectedPhong.ambient + reflectedPhong.diffuse + reflectedPhong.specular);
-    return reflectPhong;
-}
-
-Phong reflectRayTrace3(RayTrace previous, vec3 direction) {
-    Ray reflectRay;
-    reflectRay.direction = reflect(direction, previous.normal);
-    reflectRay.origin = previous.hitPoint + 0.5 * reflectRay.direction;
-    RayTrace reflectTrace = rayTrace(reflectRay);
-    if(isinf(reflectTrace.distance)) {
-        return noPhong();
-    }
-    Phong reflectPhong = illuminate(reflectTrace, -reflectRay.direction);
-    Phong reflectedPhong = reflectRayTrace2(reflectTrace, reflectRay.direction);
-    reflectPhong.specular += reflectTrace.material.specular * (reflectedPhong.ambient + reflectedPhong.diffuse + reflectedPhong.specular);
-    return reflectPhong;
-}
-
 void main() {
     float screenMinHalf = float(min(screenSize.x, screenSize.y)) * 0.5;
     float imageRatio = screenMinHalf / 200.0;
@@ -256,8 +212,36 @@ void main() {
 
             Phong cameraPhong = illuminate(cameraTrace, -ray.direction);
 
-            Phong reflectedPhong = reflectRayTrace3(cameraTrace, ray.direction);
-            cameraPhong.specular += cameraTrace.material.specular * (reflectedPhong.ambient + reflectedPhong.diffuse + reflectedPhong.specular);
+            struct {
+                float factor;
+                Phong phong;
+            } reflections[maxReflectionCount];
+
+            int numberOfReflections = min(reflectionCount, maxReflectionCount);
+            RayTrace lastRayTrace = cameraTrace;
+            Ray lastRay = ray;
+            int r;
+            for (r = 0; r < numberOfReflections; ++r) {
+                Ray reflectRay;
+                reflectRay.direction = reflect(lastRay.direction, lastRayTrace.normal);
+                reflectRay.origin = lastRayTrace.hitPoint + 0.5 * reflectRay.direction;
+                RayTrace reflectTrace = rayTrace(reflectRay);
+                if(isinf(reflectTrace.distance)) {
+                    break;
+                }
+                reflections[r].factor = lastRayTrace.material.specular;
+                reflections[r].phong = illuminate(reflectTrace, -reflectRay.direction);
+                lastRayTrace = reflectTrace;
+                lastRay = reflectRay;
+            }
+
+            for(int s = r - 1; s >= 0; --s) {
+                reflections[s].phong.specular += reflections[s + 1].factor * (reflections[s + 1].phong.ambient + reflections[s + 1].phong.diffuse + reflections[s + 1].phong.specular);
+            }
+
+            if (r > 0) {
+                cameraPhong.specular += reflections[0].factor * (reflections[0].phong.ambient + reflections[0].phong.diffuse + reflections[0].phong.specular);
+            }
             fragmentColor.rgb += cameraPhong.ambient + cameraPhong.diffuse + cameraPhong.specular;
             fragmentColor.a += 1.0;
         }
