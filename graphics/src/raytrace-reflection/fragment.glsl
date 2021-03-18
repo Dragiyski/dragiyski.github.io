@@ -17,6 +17,7 @@ out vec4 fragmentColor;
 uniform uvec2 screenSize;
 uniform sampler2D spheres;
 uniform sampler2D lights;
+uniform int antialias;
 
 struct Material {
     float ambient;
@@ -223,8 +224,6 @@ Phong reflectRayTrace3(RayTrace previous, vec3 direction) {
     return reflectPhong;
 }
 
-const int antialis = 2;
-
 void main() {
     float screenMinHalf = float(min(screenSize.x, screenSize.y)) * 0.5;
     float imageRatio = screenMinHalf / 200.0;
@@ -232,12 +231,12 @@ void main() {
     vec2 imageOrigin = screenCenter - vec2(screenMinHalf);
     fragmentColor = vec4(0.0, 0.0, 0.0, 0.0);
 
-    float divisor = 1.0 / float(antialis);
+    float divisor = 1.0 / float(antialias);
     float zero = 0.0;
     gl_FragDepth = 1.0 / zero;
 
-    for (int aliasX = 0; aliasX < antialis; ++aliasX) {
-        for (int aliasY = 0; aliasY < antialis; ++aliasY) {
+    for (int aliasX = 0; aliasX < antialias; ++aliasX) {
+        for (int aliasY = 0; aliasY < antialias; ++aliasY) {
             vec2 fragmentCoords = gl_FragCoord.xy;
             vec2 offsetAntialias = vec2(float(aliasX + 1) * divisor - divisor / 2.0 - 0.5, float(aliasY + 1) * divisor - divisor / 2.0 - 0.5);
             fragmentCoords += offsetAntialias;
@@ -264,5 +263,5 @@ void main() {
         }
     }
 
-    fragmentColor /= float(antialis * antialis);
+    fragmentColor /= float(antialias * antialias);
 }

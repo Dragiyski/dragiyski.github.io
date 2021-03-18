@@ -56,6 +56,7 @@ function paint() {
 
     raytrace.program.uniform.spheres.setUniformValue(0);
     raytrace.program.uniform.lights.setUniformValue(1);
+    raytrace.program.uniform.antialias.setUniformValue(raytrace.antialias);
 
     gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_BYTE, 0);
 
@@ -142,6 +143,7 @@ function createRaytraceSurface() {
     const gl = canvas.getContext('webgl2');
 
     gl.clearColor(0, 0, 0, 0);
+    gl.enable(gl.DITHER);
     // gl.enable(gl.BLEND);
     // gl.blendFunc(gl.ZERO, gl.DST_ALPHA);
 
@@ -181,6 +183,16 @@ async function main() {
     const canvas = document.getElementById('screen');
     const gl = canvas.getContext('webgl2');
     const raytrace = canvas.raytrace = canvas.raytrace ?? {};
+    raytrace.antialias = 1;
+    {
+        const url = new URL(window.location.href);
+        if (url.searchParams.has('antialias')) {
+            let maybeAntialias = parseInt(url.searchParams.get('antialias'));
+            if (Number.isSafeInteger(maybeAntialias) && maybeAntialias >= 1) {
+                raytrace.antialias = Math.min(16, maybeAntialias);
+            }
+        }
+    }
     const sources = {
         vertex: await fetchTextFile(new URL('vertex.glsl', import.meta.url)),
         fragment: await fetchTextFile(new URL('fragment.glsl', import.meta.url))
