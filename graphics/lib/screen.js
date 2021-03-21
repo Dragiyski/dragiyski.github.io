@@ -42,12 +42,12 @@ export default class OpenGLScreen extends HTMLDivElement {
         this[properties.contextMap] = new Map();
         this[properties.context] = null;
         this[properties.inAnimationLoop] = this[properties.inUpdate] = false;
-        const shadowRoot = this.attachShadow({ mode: 'open' });
+        const shadowRoot = this.attachShadow({mode: 'open'});
         const canvas = this.ownerDocument.createElement('canvas');
         const gl = this[properties.gl] = canvas.getContext('webgl2');
         this[properties.neutralState] = getState(gl);
         this[methods.wrapContextResourceMethods](gl);
-        this.ownerDocument.defaultView.addEventListener('unload', this[events.unload], { once: true, passive: true });
+        this.ownerDocument.defaultView.addEventListener('unload', this[events.unload], {once: true, passive: true});
         shadowRoot.appendChild(canvas);
     }
 
@@ -201,6 +201,11 @@ export default class OpenGLScreen extends HTMLDivElement {
                 }
             });
         }
+        Object.defineProperties(gl, {
+            screen: {
+                value: this
+            }
+        });
     }
 
     /**
@@ -234,6 +239,15 @@ export default class OpenGLScreen extends HTMLDivElement {
             }
         }
         return this;
+    }
+
+    freeContextResources(context) {
+        if (this[properties.contextMap].has(context)) {
+            const contextInfo = this[properties.contextMap].get(context);
+            if (contextInfo?.resource != null) {
+                this[methods.freeResources](contextInfo.resource);
+            }
+        }
     }
 
     /**
@@ -368,7 +382,8 @@ export default class OpenGLScreen extends HTMLDivElement {
             const contextInfo = this[properties.contextMap].get(knownContext);
             try {
                 knownContext.onRelease(contextInfo);
-            } catch {}
+            } catch {
+            }
         }
         this[properties.contextMap].clear();
     }
@@ -417,28 +432,33 @@ export class OpenGLContext {
      * @param {WebGL2RenderingContext} gl
      * @param {object} storage
      */
-    onCreate(gl, storage) {}
+    onCreate(gl, storage) {
+    }
 
     /**
      * Invoked by info.release() method.
      * @param {WebGL2RenderingContext} gl
      * @param {object} storage
      */
-    onRelease(gl, storage) {}
+    onRelease(gl, storage) {
+        gl.screen.freeContextResources(this);
+    }
 
     /**
      * Invoked when scene is attached to a screen.
      * @param {WebGL2RenderingContext} gl
      * @param {object} storage
      */
-    onStart(gl, storage) {}
+    onStart(gl, storage) {
+    }
 
     /**
      * Invoked when scene is detached from a screen.
      * @param {WebGL2RenderingContext} gl
      * @param {object} storage
      */
-    onStop(gl, storage) {}
+    onStop(gl, storage) {
+    }
 
     /**
      * Invoked when this is an active context and the screen have been resized.
@@ -455,7 +475,8 @@ export class OpenGLContext {
      * @param {WebGL2RenderingContext} gl
      * @param {object} storage
      */
-    onPaint(gl, storage) {}
+    onPaint(gl, storage) {
+    }
 }
 
 const resourceNameList = Object.create(null);
@@ -681,7 +702,7 @@ function onScreenResize(entries, observer) {
 
 export const name = 'opengl-screen';
 
-customElements.define(name, OpenGLScreen, { extends: 'div' });
+customElements.define(name, OpenGLScreen, {extends: 'div'});
 
 /**
  * TODO:

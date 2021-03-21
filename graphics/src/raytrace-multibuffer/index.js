@@ -1,11 +1,20 @@
 import createProgram from '../../lib/graphics/program.js';
-import OpenGLScreen, { OpenGLContext } from '../../lib/screen.js';
+import OpenGLScreen, {OpenGLContext} from '../../lib/screen.js';
 
 class RaytraceContext extends OpenGLContext {
     onCreate(gl, storage) {
         super.onCreate(gl, storage);
+
+        {
+            const ext = gl.getExtension('EXT_color_buffer_float');
+            if (ext == null) {
+                throw new Error(`The required WebGL extension [EXT_color_buffer_float] is missing`);
+            }
+        }
+
         storage.programs = Object.create(null);
         storage.programs.sphere = createProgram(gl, shaders.vertex.screen, shaders.fragment.sphere);
+        storage.programs.test = createProgram(gl, shaders.vertex.screen, shaders.fragment.test);
 
         const pseudoVertices = Float32Array.from([
             -1, +1,
@@ -38,11 +47,37 @@ class RaytraceContext extends OpenGLContext {
         gl.bindVertexArray(null);
         gl.bindBuffer(gl.ARRAY_BUFFER, null);
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
+
+        storage.framebuffer = gl.createFramebuffer();
+
+        this.updateRaytraceTextures(gl, storage);
+
+        gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, storage.framebuffer);
+        gl.framebufferTexture2D(gl.DRAW_FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, storage.raytraceColorTexture, 0);
+        gl.framebufferTexture2D(gl.DRAW_FRAMEBUFFER, gl.COLOR_ATTACHMENT1, gl.TEXTURE_2D, storage.raytraceNormalTexture, 0);
+
+        const status = gl.checkFramebufferStatus(gl.DRAW_FRAMEBUFFER);
+        if (status !== gl.FRAMEBUFFER_COMPLETE) {
+            for (const errorName of [
+                'FRAMEBUFFER_UNDEFINED',
+                'FRAMEBUFFER_INCOMPLETE_ATTACHMENT',
+                'FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT',
+                'FRAMEBUFFER_UNSUPPORTED',
+                'FRAMEBUFFER_INCOMPLETE_MULTISAMPLE'
+            ]) {
+                if (typeof gl[errorName] === 'number' && status === gl[errorName]) {
+                    throw new Error(`Failed to setup framebuffer: ${errorName}`);
+                }
+            }
+        }
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     }
 
     onStart(gl, storage) {
         super.onStart(gl, storage);
         gl.clearColor(0, 0, 0, 1);
+        gl.clearDepth(+Infinity);
+        gl.enable(gl.DEPTH_TEST);
     }
 
     onStop(gl, storage) {
@@ -51,6 +86,7 @@ class RaytraceContext extends OpenGLContext {
 
     onResize(gl, storage) {
         super.onResize(gl, storage);
+        this.updateRaytraceTextures(gl, storage);
     }
 
     onPaint(gl, storage) {
@@ -86,7 +122,25 @@ class RaytraceContext extends OpenGLContext {
             storage.programs.sphere.uniform.radius.setValue(diagonal);
         }
 
+        gl.bindFramebuffer(gl.FRAMEBUFFER, storage.framebuffer);
+        gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1]);
+
+        gl.clearBufferfv(gl.COLOR, 0, Float32Array.from([0, 0, 0, 0]));
+        gl.clearBufferfv(gl.COLOR, 1, Float32Array.from([0, 0, 0, +Infinity]));
+
         gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_BYTE, 0);
+
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+        gl.useProgram(storage.programs.test);
+
+        if ('inputTexture' in storage.programs.test.uniform) {
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, storage.raytraceNormalTexture);
+            storage.programs.test.uniform.inputTexture.setValue(0);
+        }
+
+        gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_BYTE, null);
 
         gl.bindVertexArray(null);
 
@@ -95,28 +149,30 @@ class RaytraceContext extends OpenGLContext {
 
     onRelease(gl, storage) {
         super.onRelease(gl, storage);
-        if (storage.programs != null) {
-            for (const programName in storage.programs) {
-                const program = storage.programs[programName];
-                if (gl.isProgram(program)) {
-                    for (const shader of gl.getAttachedShaders(program)) {
-                        if (gl.isShader(shader)) {
-                            gl.deleteShader(shader);
-                        }
-                    }
-                    gl.deleteProgram(program);
-                }
-            }
+    }
+
+    updateRaytraceTextures(gl, storage) {
+        if (storage.raytraceColorTexture == null) {
+            storage.raytraceColorTexture = gl.createTexture();
         }
-        if (gl.isBuffer(storage.screen?.vertexBuffer)) {
-            gl.deleteBuffer(storage.screen.vertexBuffer);
+        if (storage.raytraceNormalTexture == null) {
+            storage.raytraceNormalTexture = gl.createTexture();
         }
-        if (gl.isBuffer(storage.screen?.indexBuffer)) {
-            gl.deleteBuffer(storage.screen.indexBuffer);
-        }
-        if (gl.isVertexArray(storage.screen?.vertexArray)) {
-            gl.deleteVertexArray(storage.screen.vertexArray);
-        }
+        gl.bindTexture(gl.TEXTURE_2D, storage.raytraceColorTexture);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, gl.canvas.width, gl.canvas.height, 0, gl.RGBA, gl.FLOAT, null);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_BASE_LEVEL, 0);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAX_LEVEL, 0);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+
+        gl.bindTexture(gl.TEXTURE_2D, storage.raytraceNormalTexture);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, gl.canvas.width, gl.canvas.height, 0, gl.RGBA, gl.FLOAT, null);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_BASE_LEVEL, 0);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAX_LEVEL, 0);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+
+        gl.bindTexture(gl.TEXTURE_2D, null);
     }
 }
 
@@ -141,7 +197,8 @@ const shaders = {
         screen: await fetchTextFile(new URL('screen.vertex.glsl', import.meta.url))
     },
     fragment: {
-        sphere: await fetchTextFile(new URL('sphere.fragment.glsl', import.meta.url))
+        sphere: await fetchTextFile(new URL('sphere.fragment.glsl', import.meta.url)),
+        test: await fetchTextFile(new URL('test.fragment.glsl', import.meta.url))
     }
 };
 
