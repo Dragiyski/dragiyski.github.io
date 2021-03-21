@@ -1,5 +1,5 @@
 import createProgram from '../../lib/graphics/program.js';
-import OpenGLScreen, {OpenGLContext} from '../../lib/screen.js';
+import OpenGLScreen, { OpenGLContext } from '../../lib/screen.js';
 
 class RaytraceContext extends OpenGLContext {
     onCreate(gl, storage) {
@@ -13,8 +13,16 @@ class RaytraceContext extends OpenGLContext {
         }
 
         storage.programs = Object.create(null);
-        storage.programs.sphere = createProgram(gl, shaders.vertex.screen, shaders.fragment.sphere);
+        storage.programs.flatScreen = createProgram(gl, shaders.vertex.screen, shaders.fragment.flatScreen);
         storage.programs.test = createProgram(gl, shaders.vertex.screen, shaders.fragment.test);
+        storage.programs.raytrace = {
+            sphere: {
+                color: createProgram(gl, shaders.vertex.screen, shaders.fragment.raytrace.sphere.color)
+            }
+        };
+        storage.programs.phong = createProgram(gl, shaders.vertex.screen, shaders.fragment.phong);
+
+        storage.fieldOfView = 60 / 180 * Math.PI;
 
         const pseudoVertices = Float32Array.from([
             -1, +1,
@@ -48,15 +56,51 @@ class RaytraceContext extends OpenGLContext {
         gl.bindBuffer(gl.ARRAY_BUFFER, null);
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
 
-        storage.framebuffer = gl.createFramebuffer();
+        storage.texture2D = Object.create(null);
+        storage.framebuffer = Object.create(null);
 
-        this.updateRaytraceTextures(gl, storage);
+        for (const texName of ['rayDirection', 'color', 'normal', 'hitPoint', 'material', 'phong']) {
+            storage.texture2D[texName] = gl.createTexture();
+            gl.bindTexture(gl.TEXTURE_2D, storage.texture2D[texName]);
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, gl.canvas.width, gl.canvas.height, 0, gl.RGBA, gl.FLOAT, null);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_BASE_LEVEL, 0);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAX_LEVEL, 0);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+            gl.bindTexture(gl.TEXTURE_2D, null);
+        }
 
-        gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, storage.framebuffer);
-        gl.framebufferTexture2D(gl.DRAW_FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, storage.raytraceColorTexture, 0);
-        gl.framebufferTexture2D(gl.DRAW_FRAMEBUFFER, gl.COLOR_ATTACHMENT1, gl.TEXTURE_2D, storage.raytraceNormalTexture, 0);
+        storage.textureDepth = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, storage.textureDepth);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.DEPTH_COMPONENT32F, gl.canvas.width, gl.canvas.height, 0, gl.DEPTH_COMPONENT, gl.FLOAT, null);
+        gl.bindTexture(gl.TEXTURE_2D, null);
 
-        const status = gl.checkFramebufferStatus(gl.DRAW_FRAMEBUFFER);
+        storage.framebuffer.rayDirection = gl.createFramebuffer();
+        gl.bindFramebuffer(gl.FRAMEBUFFER, storage.framebuffer.rayDirection);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, storage.texture2D.rayDirection, 0);
+        this.validateFrameBuffer(gl, gl.FRAMEBUFFER);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+        storage.framebuffer.rayTrace = gl.createFramebuffer();
+        gl.bindFramebuffer(gl.FRAMEBUFFER, storage.framebuffer.rayTrace);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, storage.texture2D.color, 0);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, gl.TEXTURE_2D, storage.texture2D.normal, 0);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT2, gl.TEXTURE_2D, storage.texture2D.hitPoint, 0);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT3, gl.TEXTURE_2D, storage.texture2D.material, 0);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT3, gl.TEXTURE_2D, storage.texture2D.phong, 0);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, storage.textureDepth, 0);
+        this.validateFrameBuffer(gl, gl.FRAMEBUFFER);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+        storage.framebuffer.phong = gl.createFramebuffer();
+        gl.bindFramebuffer(gl.FRAMEBUFFER, storage.framebuffer.phong);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, storage.texture2D.phong, 0);
+        this.validateFrameBuffer(gl, gl.FRAMEBUFFER);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    }
+
+    validateFrameBuffer(gl, target) {
+        const status = gl.checkFramebufferStatus(target);
         if (status !== gl.FRAMEBUFFER_COMPLETE) {
             for (const errorName of [
                 'FRAMEBUFFER_UNDEFINED',
@@ -70,13 +114,13 @@ class RaytraceContext extends OpenGLContext {
                 }
             }
         }
-        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     }
 
     onStart(gl, storage) {
         super.onStart(gl, storage);
         gl.clearColor(0, 0, 0, 1);
         gl.clearDepth(+Infinity);
+        gl.depthFunc(gl.LEQUAL);
         gl.enable(gl.DEPTH_TEST);
     }
 
@@ -86,97 +130,156 @@ class RaytraceContext extends OpenGLContext {
 
     onResize(gl, storage) {
         super.onResize(gl, storage);
-        this.updateRaytraceTextures(gl, storage);
+        for (const texName of ['rayDirection', 'color', 'normal', 'hitPoint', 'material']) {
+            gl.bindTexture(gl.TEXTURE_2D, storage.texture2D[texName]);
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, gl.canvas.width, gl.canvas.height, 0, gl.RGBA, gl.FLOAT, null);
+            gl.bindTexture(gl.TEXTURE_2D, null);
+        }
+        {
+            gl.bindTexture(gl.TEXTURE_2D, storage.textureDepth);
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.DEPTH_COMPONENT32F, gl.canvas.width, gl.canvas.height, 0, gl.DEPTH_COMPONENT, gl.FLOAT, null);
+            gl.bindTexture(gl.TEXTURE_2D, null);
+        }
     }
 
     onPaint(gl, storage) {
         super.onPaint(gl, storage);
 
-        gl.useProgram(storage.programs.sphere);
+        const screen = this.calculateRayDirection(gl, storage);
 
-        gl.bindVertexArray(storage.screen.vertexArray);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, storage.framebuffer.rayTrace);
+        gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1, gl.COLOR_ATTACHMENT2, gl.COLOR_ATTACHMENT3, gl.COLOR_ATTACHMENT4]);
+        gl.clearBufferfv(gl.COLOR, 0, [0, 0, 0, 0]);
+        gl.clearBufferfv(gl.COLOR, 1, [0, 0, 0, 0]);
+        gl.clearBufferfi(gl.DEPTH_STENCIL, 0, +Infinity, 0);
 
-        const screenSize = [gl.canvas.width, gl.canvas.height];
-        const fieldOfView = 15;
-        const fov = fieldOfView / 180 * Math.PI;
-        const minScreen = Math.min(...screenSize);
-        const topLeft = screenSize.map(n => n / minScreen);
-        const viewSize = topLeft.map(n => n * 2);
-        const diagonal = Math.sqrt(viewSize[0] * viewSize[0] + viewSize[1] * viewSize[1]);
-        // const radius = diagonal / fov;
-        const radius = (diagonal * 0.5) / Math.tan(fov / 2);
+        {
+            let currentProgram = storage.programs.raytrace.sphere.color;
+            gl.useProgram(currentProgram);
 
-        if ('screenSize' in storage.programs.sphere.uniform) {
-            storage.programs.sphere.uniform.screenSize.setArray(screenSize);
+            currentProgram.uniform.rayOrigin.setArray(screen.origin);
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, storage.texture2D.rayDirection);
+            currentProgram.uniform.rayDirectionArray.setValue(0);
+            const timePosition = wrappedNumber(performance.now(), 5000);
+            const movement = Math.sin(timePosition * Math.PI * 2.0);
+            currentProgram.uniform.spherePosition.setValue(0, 0, -20);
+            currentProgram.uniform.sphereRadius.setValue(3);
+            currentProgram.uniform.sphereColor.setValue(1, 0, 0, 1);
+            currentProgram.uniform.sphereMaterial.setValue(0.2, 0.8, 0.3, 7);
+
+            gl.bindVertexArray(storage.screen.vertexArray);
+            gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_BYTE, null);
+            gl.bindVertexArray(null);
         }
 
-        if ('viewSize' in storage.programs.sphere.uniform) {
-            storage.programs.sphere.uniform.viewSize.setArray(viewSize);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, storage.framebuffer.phong);
+
+        {
+            let currentProgram = storage.programs.phong;
+
+            gl.useProgram(currentProgram);
+
+            currentProgram.uniform.lightPosition.setValue(-10, 10, 20);
+            currentProgram.uniform.lightColor.setValue(1, 1, 1);
+
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, storage.texture2D.normal);
+            currentProgram.uniform.texNormal.setValue(0);
+
+            gl.activeTexture(gl.TEXTURE1);
+            gl.bindTexture(gl.TEXTURE_2D, storage.texture2D.hitPoint);
+            currentProgram.uniform.texNormal.setValue(1);
+
+            gl.activeTexture(gl.TEXTURE2);
+            gl.bindTexture(gl.TEXTURE_2D, storage.texture2D.color);
+            currentProgram.uniform.texNormal.setValue(2);
+
+            gl.activeTexture(gl.TEXTURE3);
+            gl.bindTexture(gl.TEXTURE_2D, storage.texture2D.material);
+            currentProgram.uniform.texNormal.setValue(3);
+
+            gl.activeTexture(gl.TEXTURE4);
+            gl.bindTexture(gl.TEXTURE_2D, storage.texture2D.phong);
+            currentProgram.uniform.texNormal.setValue(4);
+
+            gl.activeTexture(gl.TEXTURE5);
+            gl.bindTexture(gl.TEXTURE_2D, storage.texture2D.rayDirection);
+            currentProgram.uniform.texRayDirection.setValue(5);
+
+            gl.bindVertexArray(storage.screen.vertexArray);
+            gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_BYTE, null);
+            gl.bindVertexArray(null);
         }
-
-        if ('radius' in storage.programs.sphere.uniform) {
-            storage.programs.sphere.uniform.radius.setValue(radius);
-        }
-
-        if ('diagonal' in storage.programs.sphere.uniform) {
-            storage.programs.sphere.uniform.radius.setValue(diagonal);
-        }
-
-        gl.bindFramebuffer(gl.FRAMEBUFFER, storage.framebuffer);
-        gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1]);
-
-        gl.clearBufferfv(gl.COLOR, 0, Float32Array.from([0, 0, 0, 0]));
-        gl.clearBufferfv(gl.COLOR, 1, Float32Array.from([0, 0, 0, +Infinity]));
-
-        gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_BYTE, 0);
 
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
-        gl.useProgram(storage.programs.test);
+        /*{
+            let currentProgram = storage.programs.test;
+            gl.useProgram(currentProgram);
 
-        if ('inputTexture' in storage.programs.test.uniform) {
             gl.activeTexture(gl.TEXTURE0);
-            gl.bindTexture(gl.TEXTURE_2D, storage.raytraceNormalTexture);
-            storage.programs.test.uniform.inputTexture.setValue(0);
-        }
+            gl.bindTexture(gl.TEXTURE_2D, storage.texture2D.material);
+            currentProgram.uniform.inputTexture.setValue(0);
 
+            gl.bindVertexArray(storage.screen.vertexArray);
+            gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_BYTE, null);
+            gl.bindVertexArray(null);
+        }*/
+    }
+
+    calculateRayDirection(gl, storage) {
+        let currentProgram = storage.programs.flatScreen;
+
+        gl.useProgram(currentProgram);
+
+        const minScreen = Math.min(gl.canvas.width, gl.canvas.height);
+        const halfDiagonal = [gl.canvas.width / minScreen, gl.canvas.height / minScreen];
+        const halfDiagonalLength = Math.sqrt(halfDiagonal[0] * halfDiagonal[0] + halfDiagonal[1] * halfDiagonal[1]);
+        const radius = storage.screenRadius = halfDiagonalLength / Math.tan(storage.fieldOfView * 0.5);
+
+        currentProgram.uniform.screenSize.setValue(gl.canvas.width, gl.canvas.height);
+        currentProgram.uniform.halfDiagonal.setArray(halfDiagonal);
+        currentProgram.uniform.screenRadius.setValue(radius);
+
+        gl.bindFramebuffer(gl.FRAMEBUFFER, storage.framebuffer.rayDirection);
+
+        gl.bindVertexArray(storage.screen.vertexArray);
         gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_BYTE, null);
-
         gl.bindVertexArray(null);
 
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
         gl.useProgram(null);
+
+        return {
+            origin: [0, 0, radius],
+            halfDiagonal,
+            halfDiagonalLength,
+            fieldOfView: storage.fieldOfView
+        };
     }
 
     onRelease(gl, storage) {
         super.onRelease(gl, storage);
     }
-
-    updateRaytraceTextures(gl, storage) {
-        if (storage.raytraceColorTexture == null) {
-            storage.raytraceColorTexture = gl.createTexture();
-        }
-        if (storage.raytraceNormalTexture == null) {
-            storage.raytraceNormalTexture = gl.createTexture();
-        }
-        gl.bindTexture(gl.TEXTURE_2D, storage.raytraceColorTexture);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, gl.canvas.width, gl.canvas.height, 0, gl.RGBA, gl.FLOAT, null);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_BASE_LEVEL, 0);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAX_LEVEL, 0);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-
-        gl.bindTexture(gl.TEXTURE_2D, storage.raytraceNormalTexture);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, gl.canvas.width, gl.canvas.height, 0, gl.RGBA, gl.FLOAT, null);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_BASE_LEVEL, 0);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAX_LEVEL, 0);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-
-        gl.bindTexture(gl.TEXTURE_2D, null);
-    }
 }
 
 async function main() {
+    shaders = {
+        vertex: {
+            screen: await fetchTextFile(new URL('screen.vertex.glsl', import.meta.url))
+        },
+        fragment: {
+            flatScreen: await fetchTextFile(new URL('flat-screen.fragment.glsl', import.meta.url)),
+            test: await fetchTextFile(new URL('test.fragment.glsl', import.meta.url)),
+            raytrace: {
+                sphere: {
+                    color: await fetchTextFile(new URL('raytrace/sphere-color.glsl', import.meta.url))
+                }
+            },
+            phong: await fetchTextFile(new URL('illumination/phong.glsl', import.meta.url))
+        }
+    };
     const context = new RaytraceContext();
     const screen = document.getElementById('screen');
     if (screen instanceof OpenGLScreen) {
@@ -192,15 +295,7 @@ function onError(error) {
     console.error(error);
 }
 
-const shaders = {
-    vertex: {
-        screen: await fetchTextFile(new URL('screen.vertex.glsl', import.meta.url))
-    },
-    fragment: {
-        sphere: await fetchTextFile(new URL('sphere.fragment.glsl', import.meta.url)),
-        test: await fetchTextFile(new URL('test.fragment.glsl', import.meta.url))
-    }
-};
+let shaders;
 
 async function fetchTextFile(url) {
     const response = await fetch(url);
@@ -211,6 +306,10 @@ async function fetchTextFile(url) {
         throw error;
     }
     return response.text();
+}
+
+function wrappedNumber(number, wrap) {
+    return (number % wrap) / wrap;
 }
 
 customElements.whenDefined('opengl-screen').then(onStart, onError);

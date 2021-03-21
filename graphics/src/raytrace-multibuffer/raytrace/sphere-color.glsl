@@ -3,20 +3,24 @@
 #if GL_ES
 precision highp float;
 precision highp int;
-precision highp sampler2DArray;
+precision highp sampler2D;
 #endif
 
 layout (location = 0) out vec4 fragmentColor;
 layout (location = 1) out vec4 fragmentNormal;
+layout (location = 2) out vec4 fragmentHitPoint;
+layout (location = 3) out vec4 fragmentMaterial;
+layout (location = 4) out vec4 fragmentPhong;
 
 uniform vec3 rayOrigin;
 uniform sampler2D rayDirectionArray;
 uniform vec3 spherePosition;
 uniform float sphereRadius;
+uniform vec4 sphereColor;
+uniform vec4 sphereMaterial;
 
 void main() {
     vec2 rayDirectionSize = vec2(textureSize(rayDirectionArray, 0));
-    vec3 sphereColor = vec3(1.0, 0.0, 0.0);
     vec3 rayDirection = textureLod(rayDirectionArray, gl_FragCoord.xy / rayDirectionSize, 0.0).xyz;
     float a = dot(rayDirection, rayDirection);
     float b = 2.0 * (dot(rayDirection, rayOrigin) - dot(rayDirection, spherePosition));
@@ -36,6 +40,9 @@ void main() {
     vec3 hitPoint = rayOrigin + x * rayDirection;
     vec3 normal = normalize(hitPoint - spherePosition);
     gl_FragDepth = x;
-    fragmentColor = vec4(sphereColor, 1.0);
+    fragmentColor = sphereColor;
     fragmentNormal = vec4(normal, 1.0);
+    fragmentHitPoint = vec4(hitPoint, 1.0);
+    fragmentMaterial = sphereMaterial;
+    fragmentPhong = vec4(sphereMaterial.x * sphereColor.xyz, sphereColor.w);
 }

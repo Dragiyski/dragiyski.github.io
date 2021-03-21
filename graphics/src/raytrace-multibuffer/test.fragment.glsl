@@ -3,7 +3,7 @@
 #if GL_ES
 precision highp float;
 precision highp int;
-precision highp sampler2D;
+precision highp sampler2DArray;
 #endif
 
 out vec4 fragmentColor;
@@ -11,9 +11,8 @@ out vec4 fragmentColor;
 uniform sampler2D inputTexture;
 
 void main() {
-    vec4 c1 = texelFetch(inputTexture, ivec2(round(gl_FragCoord.xy)), 0);
-    if (isinf(c1.w)) {
-        discard;
-    }
-    fragmentColor = vec4(c1.xyz * 0.5 + 0.5, 1.0);
+    vec2 texSize = vec2(textureSize(inputTexture, 0));
+    vec2 texCoord = gl_FragCoord.xy / texSize;
+    vec4 c1 = textureLod(inputTexture, texCoord, 0.0);
+    fragmentColor = c1;
 }

@@ -422,6 +422,7 @@ export default class OpenGLScreen extends HTMLDivElement {
                 gl.viewport(0, 0, canvas.width, canvas.height);
                 gl.scissor(0, 0, canvas.width, canvas.height);
             }
+            this.update();
         }
     }
 }
@@ -694,8 +695,8 @@ function resetState(gl, neutral) {
 
 function onScreenResize(entries, observer) {
     for (const entry of entries) {
-        if (entry instanceof OpenGLScreen) {
-            entry[methods.resize]();
+        if (entry.target instanceof OpenGLScreen) {
+            entry.target[methods.resize]();
         }
     }
 }
