@@ -134,12 +134,12 @@ export default function createProgram(gl, vertexSource, fragmentSource) {
                     }
                 });
                 if (typeInfo.uniformValue != null) {
-                    Object.defineProperty(accessor, 'setUniformValue', {
+                    Object.defineProperty(accessor, 'setValue', {
                         value: setUniformValueFactory(typeInfo.uniformValue).bind(accessor, gl)
                     });
                 }
                 if (typeInfo.uniformArray != null) {
-                    Object.defineProperty(accessor, 'setUniformArray', {
+                    Object.defineProperty(accessor, 'setArray', {
                         value: setUniformArrayFactory(typeInfo.uniformArray).bind(accessor, gl)
                     });
                 }
