@@ -36,7 +36,7 @@ function paint() {
         Math.sin(wrappedNumber(now, 5571) * Math.PI)
     ];
 
-    raytrace.program.uniform.screenSize.setUniformValue(canvas.width, canvas.height);
+    raytrace.program.uniform.screenSize.setValue(canvas.width, canvas.height);
 
     gl.bindVertexArray(raytrace.vao);
 
@@ -54,10 +54,10 @@ function paint() {
     gl.activeTexture(gl.TEXTURE1);
     gl.bindTexture(gl.TEXTURE_2D, raytrace.lights);
 
-    raytrace.program.uniform.spheres.setUniformValue(0);
-    raytrace.program.uniform.lights.setUniformValue(1);
-    raytrace.program.uniform.antialias.setUniformValue(raytrace.antialias);
-    raytrace.program.uniform.reflectionCount.setUniformValue(raytrace.reflect);
+    raytrace.program.uniform.spheres.setValue(0);
+    raytrace.program.uniform.lights.setValue(1);
+    raytrace.program.uniform.antialias.setValue(raytrace.antialias);
+    raytrace.program.uniform.reflectionCount.setValue(raytrace.reflect);
 
     gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_BYTE, 0);
 
