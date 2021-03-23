@@ -14,7 +14,6 @@ uniform sampler2D texNormal;
 uniform sampler2D texHitPoint;
 uniform sampler2D texColor;
 uniform sampler2D texMaterial;
-uniform sampler2D texPhong;
 uniform sampler2D texRayDirection;
 
 void main() {
@@ -39,5 +38,5 @@ void main() {
     float Id = max(0.0, dot(L, N)) * material.y;
     float Is = pow(max(0.0, dot(R, V)), material.w) * material.z;
     vec3 color = Id * materialColor.rgb * lightColor.rgb + Is * lightColor.rgb;
-    phongColor = vec4(phong.xyz + color, phong.a);
+    phongColor = vec4(color, 1.0);
 }

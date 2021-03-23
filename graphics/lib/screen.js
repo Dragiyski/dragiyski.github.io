@@ -6,7 +6,8 @@ const properties = {
     inUpdate: Symbol('inUpdate'),
     contextMap: Symbol('contextMap'),
     context: Symbol('context'),
-    neutralState: Symbol('neutralState')
+    neutralState: Symbol('neutralState'),
+    autoResize: Symbol('autoResize')
 };
 
 const methods = {
@@ -41,13 +42,14 @@ export default class OpenGLScreen extends HTMLDivElement {
         }
         this[properties.contextMap] = new Map();
         this[properties.context] = null;
+        this[properties.autoResize] = true;
         this[properties.inAnimationLoop] = this[properties.inUpdate] = false;
-        const shadowRoot = this.attachShadow({mode: 'open'});
+        const shadowRoot = this.attachShadow({ mode: 'open' });
         const canvas = this.ownerDocument.createElement('canvas');
         const gl = this[properties.gl] = canvas.getContext('webgl2');
         this[properties.neutralState] = getState(gl);
         this[methods.wrapContextResourceMethods](gl);
-        this.ownerDocument.defaultView.addEventListener('unload', this[events.unload], {once: true, passive: true});
+        this.ownerDocument.defaultView.addEventListener('unload', this[events.unload], { once: true, passive: true });
         shadowRoot.appendChild(canvas);
     }
 
@@ -78,6 +80,21 @@ export default class OpenGLScreen extends HTMLDivElement {
      */
     get context() {
         return this[properties.context];
+    }
+
+    get autoResize() {
+        return this[properties.autoResize];
+    }
+
+    set autoResize(value) {
+        this[properties.autoResize] = !!value;
+        if (this.isConnected) {
+            if (this[properties.autoResize]) {
+                screenResizeObserver.observe(this);
+            } else {
+                screenResizeObserver.unobserve(this);
+            }
+        }
     }
 
     /**
@@ -269,7 +286,9 @@ export default class OpenGLScreen extends HTMLDivElement {
      * This could be called synchronously from customElements.define() for any element already in the DOM tree.
      */
     connectedCallback() {
-        screenResizeObserver.observe(this);
+        if(this[properties.autoResize]) {
+            screenResizeObserver.observe(this);
+        }
         this[methods.resize]();
         if (this[properties.context] != null) {
             this[methods.callContext]('onStart', this[properties.context]);
@@ -703,7 +722,7 @@ function onScreenResize(entries, observer) {
 
 export const name = 'opengl-screen';
 
-customElements.define(name, OpenGLScreen, {extends: 'div'});
+customElements.define(name, OpenGLScreen, { extends: 'div' });
 
 /**
  * TODO:
