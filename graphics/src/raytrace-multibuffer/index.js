@@ -14,130 +14,13 @@ const methods = {
 };
 
 class RaytraceContext extends OpenGLContext {
-    constructor() {
+    constructor(scene) {
         super();
         this.screen = {
             type: 'flat',
             fieldOfView: 30 / 180 * Math.PI
         };
-        this.scene = {
-            object: {
-                sphere: [
-                    {
-                        "position": [-0.55, 1.0, 0.5],
-                        "color": [0, 0, 1, 1],
-                        "material": {
-                            "ambient": 0.2,
-                            "diffuse": 0.7,
-                            "specular": 0.5,
-                            "specularExponent": 64
-                        },
-                        "radius": 0.25
-                    },
-                    {
-                        "position": [0.05, 0.35, 1.5],
-                        "color": [0, 1, 0, 1],
-                        "material": {
-                            "ambient": 0.2,
-                            "diffuse": 0.3,
-                            "specular": 0.5,
-                            "specularExponent": 8
-                        },
-                        "radius": 0.25
-                    },
-                    {
-                        "position": [
-                            0.44999999999999996,
-                            -0.15000000000000002,
-                            0.75
-                        ],
-                        "color": [
-                            1,
-                            0,
-                            0,
-                            1
-                        ],
-                        "material": {
-                            "ambient": 0.2,
-                            "diffuse": 0.7,
-                            "specular": 0.8,
-                            "specularExponent": 32
-                        },
-                        "radius": 0.25
-                    },
-                    {
-                        "position": [
-                            -0.30000000000000004,
-                            0.10000000000000009,
-                            2
-                        ],
-                        "color": [
-                            1,
-                            0.8,
-                            0,
-                            1
-                        ],
-                        "material": {
-                            "ambient": 0.2,
-                            "diffuse": 0.8,
-                            "specular": 0,
-                            "specularExponent": 1
-                        },
-                        "radius": 0.25
-                    },
-                    {
-                        "position": [
-                            -0.44999999999999996,
-                            -0.35,
-                            1
-                        ],
-                        "color": [
-                            1,
-                            0.5,
-                            0,
-                            1
-                        ],
-                        "material": {
-                            "ambient": 0.2,
-                            "diffuse": 0.8,
-                            "specular": 0.5,
-                            "specularExponent": 32
-                        },
-                        "radius": 0.25
-                    },
-                    {
-                        "position": [
-                            0,
-                            0,
-                            -5
-                        ],
-                        "color": [
-                            0.4,
-                            0.4,
-                            0.4,
-                            1
-                        ],
-                        "material": {
-                            "ambient": 0.2,
-                            "diffuse": 0.8,
-                            "specular": 0,
-                            "specularExponent": 1
-                        },
-                        "radius": 5
-                    }
-                ]
-            },
-            light: [
-                {
-                    position: [-1.0, 2.0, 3.75],
-                    color: [1.0, 1.0, 1.0]
-                },
-                {
-                    position: [2.0, 1.0, 2.5],
-                    color: [0.0, 0.2, 0.4]
-                }
-            ]
-        };
+        this.scene = scene;
     }
 
     onCreate(gl, storage) {
@@ -550,7 +433,7 @@ class RaytraceContext extends OpenGLContext {
             gl.enable(gl.DEPTH_TEST);
             gl.depthMask(true);
             gl.stencilMask(2);
-            gl.stencilFunc(gl.EQUAL, 3, 1);
+            gl.stencilFunc(gl.ALWAYS, 3, 1);
             gl.stencilOp(gl.KEEP, gl.KEEP, gl.REPLACE);
             gl.enable(gl.STENCIL_TEST);
 
@@ -703,7 +586,8 @@ async function main() {
             showTexture: await fetchTextFile(new URL('shader/show-texture.glsl', import.meta.url))
         }
     };
-    const context = new RaytraceContext();
+    const scene = JSON.parse(await fetchTextFile(new URL('scene.json', import.meta.url)));
+    const context = new RaytraceContext(scene);
     const screen = document.getElementById('screen');
     if (screen instanceof OpenGLScreen) {
         // screen.autoResize = false;

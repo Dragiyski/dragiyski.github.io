@@ -14,10 +14,10 @@ uniform sampler2D hitImage;
 
 void main() {
     vec2 size = vec2(textureSize(hitImage, 0));
-    vec3 hitPoint = textureLod(hitImage, gl_FragCoord.xy / size, 0.0).xyz;
+    vec4 hitPoint = textureLod(hitImage, gl_FragCoord.xy / size, 0.0);
 
-    vec3 lightVector = normalize(lightPosition - hitPoint);
+    vec3 lightVector = normalize(lightPosition - hitPoint.xyz);
     float minSize = min(size.x, size.y);
-    rayOrigin = vec4(hitPoint + (0.5 / minSize) * lightVector, 1.0);
+    rayOrigin = vec4(hitPoint.xyz + (hitPoint.w / minSize) * lightVector, 1.0);
     rayDirection = vec4(lightVector, 1.0);
 }
