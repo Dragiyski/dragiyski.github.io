@@ -1,0 +1,144 @@
+html,
+body {
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    /* By default body can be smaller than the viewport. */
+    /* This 5 lines set the body to the viewport size. */
+    /* Use fixed to disable scrolling. */
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+}
+
+#application {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+}
+
+.layout-application {
+    display: grid;
+    grid-template-columns: max-content 1fr max-content;
+    grid-template-rows: 1fr 1fr;
+    grid-template-areas:
+        "left top right"
+        "left bottom right";
+    gap: 1px;
+}
+
+@media screen and (max-width: 768px) {
+    .layout-application {
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: 1fr 1fr 1fr;
+        grid-template-areas:
+            "left right"
+            "top top"
+            "bottom bottom";
+    }
+
+    .layout-application>.column-left,
+    .layout-application>.column-right {
+        min-width: auto !important;
+        width: auto !important;
+    }
+}
+
+.layout-application>* {
+    box-shadow: 0 0 2px rgba(0, 0, 0, 0.15), 2px 2px 3px rgba(0, 0, 0, 0.3);
+}
+
+.layout-application>.column-left {
+    grid-area: left;
+    min-width: 10em;
+    width: 20vw;
+    position: relative;
+}
+
+.layout-application>.column-right {
+    grid-area: right;
+    min-width: 10em;
+    width: 20vw;
+    position: relative;
+}
+
+.layout-application>.content-top {
+    grid-area: top;
+}
+
+.layout-application>.content-bottom {
+    grid-area: bottom;
+}
+
+.text-input-container {
+    font-size: 48pt;
+    padding: 12pt;
+}
+
+.text-input-container {
+    position: relative;
+}
+
+.text-input-container .cursor {
+    position: absolute;
+}
+
+.tunic-text span[is="tunic-inline"] {
+    vertical-align: middle;
+    display: inline-block;
+    min-height: 64px;
+    position: relative;
+}
+
+.tunic-text span[is="tunic-inline"]::part(canvas) {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    margin: auto;
+}
+
+span.provisional[is="tunic-inline"]::part(canvas), #tunic-provision-phoneme {
+    box-shadow: 0 0 2px rgba(0, 0, 0, 0.15), 2px 2px 3px rgba(0, 0, 0, 0.3);
+}
+
+.help-phoneme-list {
+    list-style: none outside none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-flow: column nowrap;
+}
+
+.help-phoneme-list>li {
+    display: flex;
+    flex-flow: row nowrap;
+    align-items: center;
+    vertical-align: middle;
+}
+
+.help-example-tunic, .help-example-phoneme {
+    font-size: 32pt;
+    vertical-align: middle;
+    margin: 0 8pt;
+}
+
+.help-example-phoneme {
+    margin-bottom: 16pt;
+}
+
+.scroll-view {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    overflow: scroll;
+}
