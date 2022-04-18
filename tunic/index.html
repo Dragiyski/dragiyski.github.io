@@ -15,28 +15,47 @@
     <div id="application" class="layout-application">
         <div class="column-left">
             <div class="scroll-view">
-                <h2>Help</h2>
-                <h3>Keys</h3>
-                <p>
-                    <code>F1</code>-<code>F6</code> modifies vowel lines, starting on the right, rotating counter-clockwise.<br />
-                    <code>F7</code>-<code>F12</code> modifies consonant lines, starting on the right, rotating counter-clockwise..<br />
-                    <code>Tab</code> modifies the inverse modifier.<br />
-                    <code>Enter</code> submits the current symbol if not empty.</br>
-                    <code>Ctrl+Enter</code> starts a new line.<br />
-                </p>
-                <h3>Phonemes</h3>
-                <div>
-                    <label for="help-example-voice">Voice</label>
-                    <select id="help-example-voice">
-                        <option id="help-example-voice-unavailable">Not available</option>
-                    </select>
+                <div style="padding: 0.8em;">
+                    <h2>Help</h2>
+                    <h3>Phonemes</h3>
+                    <p>Each symbol can combine one vowel and one consonant.</p>
+                    <p>Consonant is read first, unless the dot at the bottom is present.</p>
+                    <p>If there is a dot, the order is switched, the vowel is read first.</p>
+                    <div>
+                        <label for="help-example-voice">Voice</label>
+                        <select id="help-example-voice">
+                            <option id="help-example-voice-unavailable">Not available</option>
+                        </select>
+                    </div>
+                    <h4>Vowels</h4>
+                    <ul class="help-phoneme-list" id="help-example-vowel-list">
+                    </ul>
+                    <h4>Consonants</h4>
+                    <ul class="help-phoneme-list" id="help-example-consonant-list">
+                    </ul>
                 </div>
-                <h4>Vowels</h4>
-                <ul class="help-phoneme-list" id="help-example-vowel-list">
-                </ul>
-                <h4>Consonants</h4>
-                <ul class="help-phoneme-list" id="help-example-consonant-list">
-                </ul>
+            </div>
+        </div>
+        <div class="column-right">
+            <div class="scroll-view">
+                <div is="tunic-control" id="tunic-mouse-control"></div>
+                <div style="padding: 0.8em;">
+                    <h2>More keys</h2>
+                    <p><code>Enter</code> - submits the provisional character.</p>
+                    <p><code>Ctrl+Enter</code> or <code>Shift+Enter</code> - new line.</p>
+                    <p><code>Escape</code> - clears the provisional character.</p>
+                    <p><code>Backspace</code> - clears the last <b>non-provisional</b> character.</p>
+                    <p>Any printable character - just print it as is. Usable for English and punctuation.</p>
+                    <h2>Example</h2>
+                    <p class="tunic-text tunic-example">
+                        <span class="tunic-word"><span is="tunic-inline" class="" data-tunic-items="2 3 4 5 8 9 11"></span><span is="tunic-inline" class="" data-tunic-items="0 1 4 5 7 8 11"></span></span><span class="character english"> </span><span class="tunic-word"><span is="tunic-inline" class="" data-tunic-items="1 2 3 6 10 11"></span><span is="tunic-inline" class="" data-tunic-items="0 1 8 9 11"></span></span><span class="character english"> </span><span class="tunic-word"><span is="tunic-inline" class="" data-tunic-items="4 5 6 10 11"></span><span is="tunic-inline" class="" data-tunic-items="7 8 11"></span></span><span class="character english"> </span><span class="tunic-word"><span is="tunic-inline" class="" data-tunic-items="0 1 2 3 4 7 8 10"></span></span><span class="character english"> </span><span class="tunic-word"><span is="tunic-inline" class="" data-tunic-items="0 1 6 10 12"></span><span class="character english">,</span></span><br/>
+                        <span class="tunic-word"><span is="tunic-inline" class="" data-tunic-items="2 3 4 5 8 9 11"></span><span is="tunic-inline" class="" data-tunic-items="0 1 4 5 7 8 11"></span></span><span class="character english"> </span><span class="tunic-word"><span is="tunic-inline" class="" data-tunic-items="1 2 3 6 10 11"></span><span is="tunic-inline" class="" data-tunic-items="0 1 8 9 11"></span></span><span class="character english"> </span><span class="tunic-word"><span is="tunic-inline" class="" data-tunic-items="2 3 4 5 7 10"></span><span is="tunic-inline" class="" data-tunic-items="6 8 10"></span></span><span class="character english"> </span><span class="tunic-word"><span is="tunic-inline" class="" data-tunic-items="0 1 2 3 4 7 8 10"></span></span><span class="character english"> </span><span class="tunic-word"><span is="tunic-inline" class="" data-tunic-items="5 7 9 11"></span><span is="tunic-inline" class="" data-tunic-items="8 9 11"></span><span class="character english">,</span></span><br/>
+                        <span class="tunic-word"><span is="tunic-inline" class="" data-tunic-items="2 3 4 5 8 9 11"></span><span is="tunic-inline" class="" data-tunic-items="0 1 7 8 11"></span></span><span class="character english"> </span><span class="tunic-word"><span is="tunic-inline" class="" data-tunic-items="1 2 3 6 10 11"></span><span is="tunic-inline" class="" data-tunic-items="0 1 8 9 11"></span></span><span class="character english"> </span><span class="tunic-word"><span is="tunic-inline" class="" data-tunic-items="0 1 6 7 10"></span><span is="tunic-inline" class="" data-tunic-items="8 9 11"></span></span><span class="character english"> </span><span class="tunic-word"><span is="tunic-inline" class="" data-tunic-items="0 1 6 7 10 12"></span><span is="tunic-inline" class="" data-tunic-items="5 8 9 11 12"></span><span is="tunic-inline" class="" data-tunic-items="7 9 11"></span></span><span class="character english"> </span><span class="tunic-word"><span is="tunic-inline" class="" data-tunic-items="0 1 2 3 8 9 11 12"></span><span is="tunic-inline" class="" data-tunic-items="7 9 11"></span></span><span class="character english"> </span><span class="tunic-word"><span is="tunic-inline" class="" data-tunic-items="2 3 4 5 7 9 11"></span><span is="tunic-inline" class="" data-tunic-items="0 1 7 8 10 11"></span><span is="tunic-inline" class="" data-tunic-items="6 7 10"></span><span is="tunic-inline" class="" data-tunic-items="6 8 10"></span></span><span class="character english"> </span><span class="tunic-word"><span is="tunic-inline" class="" data-tunic-items="0 1 2 3 4 7 8 10"></span><span class="character english">!</span></span><br/>
+                        <span class="tunic-word"><span is="tunic-inline" class="" data-tunic-items="2 3 4 5 8 9 11"></span><span is="tunic-inline" class="" data-tunic-items="0 1 7 8 11"></span></span><span class="character english"> </span><span class="tunic-word"><span is="tunic-inline" class="" data-tunic-items="1 2 3 6 10 11"></span><span is="tunic-inline" class="" data-tunic-items="0 1 8 9 11"></span></span><span class="character english"> </span><span class="tunic-word"><span is="tunic-inline" class="" data-tunic-items="1 9 11"></span><span is="tunic-inline" class="" data-tunic-items="6 7 11"></span></span><span class="character english"> </span><span class="tunic-word"><span is="tunic-inline" class="" data-tunic-items="0 1 2 3 4 7 8 10"></span></span><span class="character english"> </span><span class="tunic-word"><span is="tunic-inline" class="" data-tunic-items="6 7 11"></span><span is="tunic-inline" class="" data-tunic-items="0 6 7 10"></span><span class="character english">,</span></span><br/>
+                        <span class="tunic-word"><span is="tunic-inline" class="" data-tunic-items="2 3 4 5 8 9 11"></span><span is="tunic-inline" class="" data-tunic-items="0 1 4 5 7 8 11"></span></span><span class="character english"> </span><span class="tunic-word"><span is="tunic-inline" class="" data-tunic-items="1 2 3 6 10 11"></span><span is="tunic-inline" class="" data-tunic-items="0 1 8 9 11"></span></span><span class="character english"> </span><span class="tunic-word"><span is="tunic-inline" class="" data-tunic-items="1 6 7 9 10"></span></span><span class="character english"> </span><span class="tunic-word"><span is="tunic-inline" class="" data-tunic-items="2 3 4 6 10 11"></span><span is="tunic-inline" class="" data-tunic-items="7 9 11"></span><span is="tunic-inline" class="" data-tunic-items="0 7 11"></span><span class="character english">,</span></span><br/>
+                        <span class="tunic-word"><span is="tunic-inline" class="" data-tunic-items="2 3 4 5 8 9 11"></span><span is="tunic-inline" class="" data-tunic-items="0 1 7 8 11"></span></span><span class="character english"> </span><span class="tunic-word"><span is="tunic-inline" class="" data-tunic-items="1 2 3 6 10 11"></span><span is="tunic-inline" class="" data-tunic-items="0 1 8 9 11"></span></span><span class="character english"> </span><span class="tunic-word"><span is="tunic-inline" class="" data-tunic-items="2 3 4 5 6 8 10"></span><span is="tunic-inline" class="" data-tunic-items="7 10"></span></span><span class="character english"> </span><span class="tunic-word"><span is="tunic-inline" class="" data-tunic-items="0 1"></span></span><span class="character english"> </span><span class="tunic-word"><span is="tunic-inline" class="" data-tunic-items="0 7 10"></span></span><span class="character english"> </span><span class="tunic-word"><span is="tunic-inline" class="" data-tunic-items="0 1 2 3 8 9 11 12"></span><span is="tunic-inline" class="" data-tunic-items="7 9 11"></span></span><span class="character english"> </span><span class="tunic-word"><span is="tunic-inline" class="" data-tunic-items="0 2 3 4 5 7 10 11"></span><span is="tunic-inline" class="" data-tunic-items="6 8 10"></span></span><span class="character english"> </span><span class="tunic-word"><span is="tunic-inline" class="" data-tunic-items="0 1 2 3 4 7 8 10"></span><span class="character english">!</span></span>
+                    </p>
+                </div>
             </div>
         </div>
         <div class="content-top text-input-container tunic-text" id="tunic-text">

@@ -5,8 +5,8 @@ export class TunicInlineElement extends HTMLSpanElement {
     #canvas;
     #context;
     #style;
-    #div;
     #active;
+    #div;
     #elements = [];
     static #resizeObserver;
     static #attributeObserver;
@@ -21,8 +21,17 @@ export class TunicInlineElement extends HTMLSpanElement {
         this.#shadow = this.attachShadow({ mode: 'closed' });
         const canvas = this.#canvas = this.ownerDocument.createElement('canvas');
         const context = this.#context = canvas.getContext('2d');
-        this.#shadow.appendChild(canvas);
+        const div = this.#div = this.ownerDocument.createElement('div');
+        div.attributeStyleMap.set('position', 'relative');
+        div.attributeStyleMap.set('display', 'inline-block');
+        div.appendChild(canvas);
+        this.#shadow.appendChild(div);
         canvas.setAttribute('part', 'canvas');
+        canvas.attributeStyleMap.set('position', 'absolute');
+        canvas.attributeStyleMap.set('top', CSS.px(0));
+        canvas.attributeStyleMap.set('left', CSS.px(0));
+        canvas.attributeStyleMap.set('right', CSS.px(0));
+        canvas.attributeStyleMap.set('bottom', CSS.px(0));
         for (let index = 0; index < 12; ++index) {
             const element = Object.assign(Object.create(null), {
                 canvas, context, index, ...lineElement
@@ -77,6 +86,7 @@ export class TunicInlineElement extends HTMLSpanElement {
         const canvas = this.#canvas;
         canvas.attributeStyleMap.set('width', CSS.px(width));
         canvas.attributeStyleMap.set('height', CSS.px(height));
+        this.#div.attributeStyleMap.set('height', CSS.px(height));
         canvas.width = width;
         canvas.height = height;
         let lineWidth = (3 / 100) * height;
@@ -111,7 +121,7 @@ export class TunicInlineElement extends HTMLSpanElement {
         } catch {}
         const drawWidth = width - 2 * lineWidth;
         const drawHeight = height - 4 * lineWidth - circleRadius;
-        this.attributeStyleMap.set('width', CSS.px(drawWidth));
+        this.#div.attributeStyleMap.set('width', CSS.px(drawWidth));
         const dx = drawWidth / 2;
         const dy = drawHeight / 5;
         const gx = [lineWidth];

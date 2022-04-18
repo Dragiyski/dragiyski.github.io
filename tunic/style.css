@@ -92,17 +92,9 @@ body {
 .tunic-text span[is="tunic-inline"] {
     vertical-align: middle;
     display: inline-block;
+    min-width: 28px;
     min-height: 64px;
     position: relative;
-}
-
-.tunic-text span[is="tunic-inline"]::part(canvas) {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    margin: auto;
 }
 
 span.provisional[is="tunic-inline"]::part(canvas), #tunic-provision-phoneme {
@@ -144,4 +136,16 @@ span.provisional[is="tunic-inline"]::part(canvas), #tunic-provision-phoneme {
     right: 0;
     bottom: 0;
     overflow: scroll;
+}
+
+div[is="tunic-control"] {
+    padding: 1em;
+}
+
+.tunic-example {
+    font-size: 32pt;
+}
+
+.tunic-text .tunic-word {
+    white-space: nowrap;
 }

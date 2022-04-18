@@ -65,7 +65,7 @@ function onKeyDown(event) {
             return;
         }
         event.preventDefault();
-        if (event.shiftKey) {
+        if (event.shiftKey || event.ctrlKey) {
             tunicText.insertBefore(document.createElement('br'), tunicProvisional);
             phoneticText.insertBefore(document.createElement('br'), phoneticProvisional);
         } else if (tunicProvisional.activeItems.length > 0) {
@@ -99,7 +99,7 @@ function onKeyDown(event) {
             return;
         }
         event.preventDefault();
-        const text = event.key.toUpperCase();
+        const text = event.key;
         {
             const span = document.createElement('span');
             span.className = 'character english';
@@ -171,6 +171,7 @@ function handleVoiceChanged(event) {
 function whenLoaded() {
     const provisionalSymbol = document.getElementById('tunic-provision-symbol');
     const provisionalPhoneme = document.getElementById('tunic-provision-phoneme');
+    const tunicMouseControl = document.getElementById('tunic-mouse-control');
     provisionalSymbol.addEventListener('tunic-item-update', onUpdate);
     function onUpdate() {
         const active = provisionalSymbol.activeItems;
@@ -179,6 +180,9 @@ function whenLoaded() {
             provisionalPhoneme.textContent = text;
         } else {
             provisionalPhoneme.innerHTML = '&nbsp;';
+        }
+        if (!provisionalSymbol.inControlUpdate) {
+            tunicMouseControl.setActive(provisionalSymbol.dataset.tunicItems);
         }
     }
     let voicingAvaliable = false;
@@ -213,6 +217,9 @@ function whenLoaded() {
             }
         }
     }
+
+    tunicMouseControl.addEventListener('tunic-element-update', onElementUpdate);
+
     const vowelList = document.getElementById('help-example-vowel-list');
     const consonantList = document.getElementById('help-example-consonant-list');
 
@@ -221,14 +228,19 @@ function whenLoaded() {
             const items = phonemes[phoneme];
             const li = document.createElement('li');
             const tunic = document.createElement('span', { is: 'tunic-inline' });
+            const link = document.createElement('a');
+            link.setAttribute('href', 'javascript:void(0);');
+            link.addEventListener('click', setToElement);
+            link.dataset.tunicItems = items.join(' ');
+            li.appendChild(link);
             tunic.classList.add('help-example-symbol-tunic');
             tunic.dataset.tunicItems = items.join(' ');
-            li.appendChild(tunic);
+            link.appendChild(tunic);
             const examples = items.examples;
             const ipa = document.createElement('span');
             ipa.classList.add('help-example-symbol-ipa');
             ipa.textContent = phoneme;
-            li.appendChild(ipa);
+            link.appendChild(ipa);
             if (Array.isArray(examples) && examples.length > 0) {
                 const elements = [];
                 for (const example of examples) {
@@ -288,4 +300,36 @@ function speakSelf(event) {
     if (utterance.voice != null) {
         speechSynthesis.speak(utterance);
     }
+}
+
+function onElementUpdate(event) {
+    const provision = document.getElementById('tunic-provision-symbol');
+    const active = parseActiveItems(provision.dataset.tunicItems);
+    if (event.active && active.indexOf(event.index) < 0) {
+        active.push(event.index);
+    } else if (!event.active) {
+        const index = active.indexOf(event.index);
+        if (index >= 0) {
+            active.splice(index, 1);
+        }
+    }
+    active.sort((a, b) => a - b);
+    provision.dataset.tunicItems = active.join(' ');
+}
+
+function setToElement(event) {
+    const target = event.currentTarget;
+    const items = parseActiveItems(target.dataset.tunicItems);
+    const provision = document.getElementById('tunic-provision-symbol');
+    let min = items.reduce((n, v) => v < n ? v : n, 12);
+    if (min <= 5) {
+        min = 0;
+    } else {
+        min = 6;
+    }
+    let max = min === 0 ? 5 : 11;
+    let activeItems = parseActiveItems(provision.dataset.tunicItems);
+    activeItems = activeItems.filter(n => n < min || n > max).concat(items);
+    activeItems.sort((a, b) => a - b);
+    provision.dataset.tunicItems = activeItems.join(' ');
 }
