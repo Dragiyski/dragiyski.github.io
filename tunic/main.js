@@ -1,4 +1,4 @@
-import { getTextRepresentation } from './database.js';
+import { getTextRepresentation, vowels, consonants } from './database.js';
 import { parseActiveItems } from './tunic-inline.js';
 
 customElements.whenDefined('tunic-inline').then(() => {
@@ -115,6 +115,59 @@ function onKeyDown(event) {
     }
 }
 
+function handleVoiceChanged(event) {
+    let voices = speechSynthesis.getVoices();
+    voices = [...voices];
+    if (voices.length <= 0) {
+        return;
+    }
+    voices = [...voices].filter(voice => voice?.lang?.startsWith?.('en-'));
+    if (voices.length <= 0) {
+        return;
+    }
+    const voiceUnavailable = document.getElementById('help-example-voice-unavailable');
+    const voiceList = document.getElementById('help-example-voice');
+    let initializeSpeech = false;
+    if (voiceUnavailable != null && voiceUnavailable.parentElement === voiceList) {
+        initializeSpeech = true;
+        voiceList.removeChild(voiceUnavailable);
+    }
+    const options = [...voiceList.options].filter(option => option !== voiceUnavailable);
+    const selectedOption = voiceList.options.selectedIndex >= 0 ? options[voiceList.options.selectedIndex] : null;
+    while (voiceList.childNodes.length > 0) {
+        voiceList.removeChild(voiceList.childNodes.item(0));
+    }
+    let defaultOption = null;
+    for (const voice of voices) {
+        const optionIndex = options.findIndex(option => option.value === voice.voiceURI);
+        if (optionIndex <= 0) {
+            const option = document.createElement('option');
+            option.setAttribute('value', voice.voiceURI);
+            option.voice = voice;
+            option.textContent = voice.voiceURI;
+            voiceList.appendChild(option);
+            if (voice.default) {
+                defaultOption = option;
+            }
+        } else {
+            const option = options[optionIndex];
+            options.splice(optionIndex, 1);
+            option.voice = voice;
+            voiceList.appendChild(option);
+        }
+    }
+    if (initializeSpeech) {
+        for (const textContainer of document.querySelectorAll('.help-example-english-word.text')) {
+            const button = document.createElement('button');
+            button.setAttribute('type', 'button');
+            button.className = 'help-example-speak-button help-example-english-word button-speak';
+            button.addEventListener('click', speakSelf);
+            button.innerHTML = textContainer.innerHTML;
+            textContainer.parentElement.replaceChild(button, textContainer);
+        }
+    }
+}
+
 function whenLoaded() {
     const provisionalSymbol = document.getElementById('tunic-provision-symbol');
     const provisionalPhoneme = document.getElementById('tunic-provision-phoneme');
@@ -127,5 +180,112 @@ function whenLoaded() {
         } else {
             provisionalPhoneme.innerHTML = '&nbsp;';
         }
+    }
+    let voicingAvaliable = false;
+    if (
+        window.speechSynthesis != null &&
+        typeof speechSynthesis.speak === 'function' &&
+        typeof speechSynthesis.getVoices === 'function' &&
+        typeof window.SpeechSynthesisUtterance === 'function'
+    ) {
+        let voices = speechSynthesis.getVoices();
+        if (typeof voices?.[Symbol.iterator] === 'function') {
+            voices = [...voices];
+            if (voices.length <= 0) {
+                speechSynthesis.addEventListener('voiceschanged', handleVoiceChanged);
+            }
+            voices = [...voices].filter(voice => voice?.lang?.startsWith?.('en-'));
+            if (voices.length > 0) {
+                const voiceUnavailable = document.getElementById('help-example-voice-unavailable');
+                const voiceList = document.getElementById('help-example-voice');
+                voiceList.removeChild(voiceUnavailable);
+                for (const voice of voices) {
+                    const option = document.createElement('option');
+                    option.setAttribute('value', voice.voiceURI);
+                    option.voice = voice;
+                    option.textContent = voice.voiceURI;
+                    voiceList.appendChild(option);
+                    if (voice.default) {
+                        option.setAttribute('selected', 'selected');
+                    }
+                }
+                voicingAvaliable = true;
+            }
+        }
+    }
+    const vowelList = document.getElementById('help-example-vowel-list');
+    const consonantList = document.getElementById('help-example-consonant-list');
+
+    for (const [list, phonemes] of [[vowelList, vowels], [consonantList, consonants]]) {
+        for (const phoneme in phonemes) {
+            const items = phonemes[phoneme];
+            const li = document.createElement('li');
+            const tunic = document.createElement('span', { is: 'tunic-inline' });
+            tunic.classList.add('help-example-symbol-tunic');
+            tunic.dataset.tunicItems = items.join(' ');
+            li.appendChild(tunic);
+            const examples = items.examples;
+            const ipa = document.createElement('span');
+            ipa.classList.add('help-example-symbol-ipa');
+            ipa.textContent = phoneme;
+            li.appendChild(ipa);
+            if (Array.isArray(examples) && examples.length > 0) {
+                const elements = [];
+                for (const example of examples) {
+                    let element;
+                    if (voicingAvaliable) {
+                        element = document.createElement('button');
+                        element.setAttribute('type', 'button');
+                        element.className = 'help-example-speak-button help-example-english-word button-speak';
+                        element.addEventListener('click', speakSelf);
+                    } else {
+                        element = document.createElement('span');
+                        element.className = 'help-example-english-word text'
+                    }
+                    element.innerHTML = example;
+                    elements.push(element);
+                }
+                li.appendChild(document.createTextNode(' like in '));
+                li.appendChild(elements[0]);
+                for (let i = 1; i < elements.length - 1; ++i) {
+                    li.appendChild(document.createTextNode(', '));
+                    li.appendChild(elements[i]);
+                }
+                if (elements.length > 1) {
+                    li.appendChild(document.createTextNode(', or '));
+                    li.appendChild(elements[elements.length - 1]);
+                }
+            }
+            list.appendChild(li);
+        }
+    }
+}
+
+/**
+ * @param {Event} event 
+ */
+function speakSelf(event) {
+    const target = event.currentTarget;
+    if (speechSynthesis.speaking || speechSynthesis.pending || speechSynthesis.pending) {
+        speechSynthesis.cancel();
+    }
+    const word = target.textContent;
+    const utterance = new SpeechSynthesisUtterance(word);
+    const voiceList = document.getElementById('help-example-voice');
+    const options = voiceList.options;
+    const option = options[options.selectedIndex];
+    if (option != null) {
+        if (option.voice != null && typeof option.voice.voiceURI === 'string') {
+            utterance.voice = option.voice;
+        } else {
+            const voiceURI = option.value;
+            const voice = [...speechSynthesis.getVoices()].filter(voice => voice.voiceURI === voiceURI)[0];
+            if (voice != null) {
+                utterance.voice = voice;
+            }
+        }
+    }
+    if (utterance.voice != null) {
+        speechSynthesis.speak(utterance);
     }
 }

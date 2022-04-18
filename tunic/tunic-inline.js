@@ -173,7 +173,7 @@ export class TunicInlineElement extends HTMLSpanElement {
         context.stroke();
         // The vertical stroke goes to the center instead of the third line;
         // However, if not present, but the bottom vertical stroke is present, the side strokes joins the center, if present.
-        if (active.indexOf(10) >= 0 && active.indexOf(7) < 0 && active.indexOf(6) >= 0 && active.indexOf(8) >= 0) {
+        if (active.indexOf(10) >= 0 && active.indexOf(7) < 0 && (active.indexOf(6) >= 0 || active.indexOf(8) >= 0)) {
             context.beginPath();
             context.moveTo(gx[points[5][0]], gy[points[5][1]]);
             context.lineTo(gx[points[3][0]], gy[points[3][1]]);

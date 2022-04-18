@@ -117,20 +117,23 @@ span.provisional[is="tunic-inline"]::part(canvas), #tunic-provision-phoneme {
     flex-flow: column nowrap;
 }
 
-.help-phoneme-list>li {
-    display: flex;
-    flex-flow: row nowrap;
-    align-items: center;
+.help-phoneme-list em {
+    font-weight: bold;
+    text-decoration: underline;
+}
+
+.help-phoneme-list>li, .help-phoneme-list>li>* {
     vertical-align: middle;
 }
 
-.help-example-tunic, .help-example-phoneme {
+.help-example-symbol-tunic, .help-example-symbol-ipa {
     font-size: 32pt;
     vertical-align: middle;
     margin: 0 8pt;
 }
 
-.help-example-phoneme {
+.help-example-symbol-ipa {
+    display: inline-block;
     margin-bottom: 16pt;
 }
 
