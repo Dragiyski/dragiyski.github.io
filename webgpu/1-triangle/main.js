@@ -1,5 +1,15 @@
 import '../patch.js';
 
+function updateCanvasSize() {
+    const control_width = document.getElementById('control_width');
+    const control_height = document.getElementById('control_height');
+    const width = control_width.valueAsNumber;
+    const height = control_height.valueAsNumber;
+    const canvas = document.getElementById('screen');
+    canvas.style.width = width + 'px';
+    canvas.style.height = height + 'px';
+}
+
 async function main() {
     const canvas = document.getElementById('screen');
     const context = canvas.getContext('webgpu');
@@ -17,6 +27,13 @@ async function main() {
     if (device == null) {
         throw new Error('WebGPU Error: Unable to get a device');
     }
+    const control_width = document.getElementById('control_width');
+    const control_height = document.getElementById('control_height');
+    control_width.valueAsNumber = canvas.clientWidth;
+    control_height.valueAsNumber = canvas.clientHeight;
+    control_width.addEventListener('change', updateCanvasSize);
+    control_height.addEventListener('change', updateCanvasSize);
+    updateCanvasSize();
     let resizeHandler = resizeFirst;
 
     const vertexBuffer = device.createBuffer({

@@ -1,0 +1,50 @@
+html, body {
+    padding: 0;
+    margin: 0;
+}
+
+* {
+    flex: 0 0 auto; /* Fix for Safari, failing to set the default flex */
+}
+
+body {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+}
+
+canvas.screen {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+#app {
+    display: flex;
+    flex-flow: row nowrap;
+}
+
+#screen-container {
+    flex: 1 1 auto;
+}
+
+#controls {
+    flex: 0 0 auto;
+    min-width: 200px;
+    max-width: 25vw;
+    display: grid;
+    grid-template-columns: 1fr 2fr 1fr;
+    grid-gap: 0.8em;
+    padding: 0.8em;
+}
+
+#controls .form-row {
+    display: contents;
+}
