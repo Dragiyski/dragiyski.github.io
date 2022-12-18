@@ -57,7 +57,7 @@ const examples = Object.assign(Object.create(null), {
     'ɪə': ['b<em>eer</em>', 'h<em>er</em>e'],
     'ə': ['<em>a</em> word', '<em>a</em>vailable', 's<em>u</em>n'],
     'eə': ['<em>air</em>', 'th<em>er</em>e'],
-    'ɪ': ['s<em>i</em>', 'b<em>i</em>t'],
+    'ɪ': ['s<em>i</em>t', 'b<em>i</em>t'],
     'aɪ': ['g<em>uy</em>', 'p<em>ie</em>', 'r<em>i</em>ce'],
     'ɜː': ['b<em>ir</em>d', 'h<em>ear</em>d'],
     'əʊ': ['t<em>oe</em>', 'r<em>ow</em>', 'm<em>ow</em>n'],
