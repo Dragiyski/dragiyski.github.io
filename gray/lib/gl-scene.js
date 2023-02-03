@@ -1,4 +1,28 @@
-export default class OpenGLContext {
+export default class OpenGLScene {
+    constructor(options) {
+        options = Object.assign(Object.create(null), options ?? {});
+        for (const name in [
+            'create',
+            'release',
+            'start',
+            'stop',
+            'resize',
+            'paint'
+        ]) {
+            if (name in options) {
+                const value = options[name];
+                if (typeof value === 'function') {
+                    const methodName = 'on' + name.substring(0, 1).toUpperCase() + name.substring(1);
+                    Object.defineProperty(this, methodName, {
+                        configurable: true,
+                        writable: true,
+                        value
+                    });
+                }
+            }
+        }
+    }
+
     /**
      * Invoked when the context is first attached to screen.
      * @param {WebGL2RenderingContext} gl
@@ -13,7 +37,7 @@ export default class OpenGLContext {
      * @param {object} storage
      */
     onRelease(gl, storage) {
-        gl.screen.freeContextResources(this);
+        gl.screen.freeSceneResources(this);
     }
 
     /**
@@ -39,7 +63,6 @@ export default class OpenGLContext {
      */
     onResize(gl, storage) {
         gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
-        gl.scissor(0, 0, gl.canvas.width, gl.canvas.height);
     }
 
     /**

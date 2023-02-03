@@ -1,4 +1,4 @@
-import OpenGLContext from './gl-context.js';
+import OpenGLScene from './gl-scene.js';
 
 const properties = {
     screen: Symbol('screen'),
@@ -7,9 +7,10 @@ const properties = {
     inAnimationLoop: Symbol('inAnimationLoop'),
     inUpdate: Symbol('inUpdate'),
     contextMap: Symbol('contextMap'),
-    context: Symbol('context'),
+    scene: Symbol('scene'),
     neutralState: Symbol('neutralState'),
-    autoResize: Symbol('autoResize')
+    autoResize: Symbol('autoResize'),
+    forceResize: Symbol('forceResize')
 };
 
 const methods = {
@@ -18,7 +19,7 @@ const methods = {
     paint: Symbol('paint'),
     clear: Symbol('clear'),
     resize: Symbol('resize'),
-    createContextInfo: Symbol('createContextInfo'),
+    createsceneContext: Symbol('createsceneContext'),
     clearContext: Symbol('clearContext'),
     callContext: Symbol('callContext'),
     freeResources: Symbol('freeResources'),
@@ -42,9 +43,10 @@ export default class OpenGLScreen extends HTMLDivElement {
                 this[event] = this[event].bind(this);
             }
         }
-        this[properties.contextMap] = new Map();
-        this[properties.context] = null;
+        this[properties.sceneMap] = new Map();
+        this[properties.scene] = null;
         this[properties.autoResize] = true;
+        this[properties.forceResize] = false;
         this[properties.inAnimationLoop] = this[properties.inUpdate] = false;
         const shadowRoot = this.attachShadow({ mode: 'open' });
         const canvas = this.ownerDocument.createElement('canvas');
@@ -53,6 +55,10 @@ export default class OpenGLScreen extends HTMLDivElement {
         this[methods.wrapContextResourceMethods](gl);
         this.ownerDocument.defaultView.addEventListener('unload', this[events.unload], { once: true, passive: true });
         shadowRoot.appendChild(canvas);
+    }
+
+    forceResize() {
+        this[properties.forceResize] = true;
     }
 
     /**
@@ -78,10 +84,10 @@ export default class OpenGLScreen extends HTMLDivElement {
     }
 
     /**
-     * @returns {OpenGLContext|null}
+     * @returns {OpenGLScene|null}
      */
-    get context() {
-        return this[properties.context];
+    get scene() {
+        return this[properties.scene];
     }
 
     get autoResize() {
@@ -100,70 +106,70 @@ export default class OpenGLScreen extends HTMLDivElement {
     }
 
     /**
-     * @param {OpenGLContext|null} context
+     * @param {OpenGLScene|null} scene
      * @returns {boolean}
      */
-    set context(context) {
-        if (!(context instanceof OpenGLContext) && context != null) {
-            throw new TypeError('Expected [object OpenGLScreen]::context to be [object OpenGLContext]');
+    set scene(scene) {
+        if (!(scene instanceof OpenGLScene) && scene != null) {
+            throw new TypeError('Expected [object OpenGLScreen]::scene to be [object OpenGLScene]');
         }
-        if (this[properties.context] === context) {
+        if (this[properties.scene] === scene) {
             this.update();
             return true;
         }
-        if (this[properties.context] != null) {
+        if (this[properties.scene] != null) {
             this[methods.clearContext]();
         }
-        if (context != null) {
-            if (!this[properties.contextMap].has(context)) {
-                const contextInfo = this[methods.createContextInfo]();
-                this[properties.contextMap].set(context, contextInfo);
-                this[methods.callContext]('onCreate', this[properties.context] = context);
+        if (scene != null) {
+            if (!this[properties.sceneMap].has(scene)) {
+                const sceneContext = this[methods.createsceneContext]();
+                this[properties.sceneMap].set(scene, sceneContext);
+                this[methods.callContext]('onCreate', this[properties.scene] = scene);
             }
-            this[methods.callContext]('onStart', this[properties.context] = context);
-            this[methods.callContext]('onResize', context);
+            this[methods.callContext]('onStart', this[properties.scene] = scene);
+            this[methods.callContext]('onResize', scene);
         } else {
-            this[properties.context] = null;
+            this[properties.scene] = null;
         }
         this.update();
         return true;
     }
 
-    [methods.createContextInfo]() {
-        const contextInfo = Object.create(null);
-        contextInfo.storage = Object.create(null);
-        contextInfo.resource = Object.create(null);
-        contextInfo.error = null;
+    [methods.createsceneContext]() {
+        const sceneContext = Object.create(null);
+        sceneContext.storage = Object.create(null);
+        sceneContext.resource = Object.create(null);
+        sceneContext.error = null;
         for (const resource in resourceNameList) {
-            contextInfo.resource[resource] = new Set();
+            sceneContext.resource[resource] = new Set();
         }
-        return contextInfo;
+        return sceneContext;
     }
 
     [methods.clearContext]() {
-        if (this[methods.callContext]('onStop', this[properties.context])) {
+        if (this[methods.callContext]('onStop', this[properties.scene])) {
             resetState(this[properties.gl], this[properties.neutralState]);
         }
     }
 
-    [methods.callContext](callback, context) {
-        const contextInfo = this[properties.contextMap].get(context);
-        if (contextInfo == null || contextInfo.error != null) {
+    [methods.callContext](callback, scene) {
+        const sceneContext = this[properties.sceneMap].get(scene);
+        if (sceneContext == null || sceneContext.error != null) {
             return true;
         }
         try {
-            context[callback](this.gl, contextInfo.storage);
+            scene[callback](this.gl, sceneContext.storage);
         } catch (e) {
-            console.error(contextInfo.error = e);
+            console.error(sceneContext.error = e);
             resetState(this[properties.gl], this[properties.neutralState]);
-            this[methods.freeResources](contextInfo.resource);
-            const error = new ErrorEvent('gl.context.error', {
+            this[methods.freeResources](sceneContext.resource);
+            const error = new ErrorEvent('gl.scene.error', {
                 message: e?.message ?? '',
                 error: e
             });
             Object.defineProperties(error, {
-                context: {
-                    value: context
+                scene: {
+                    value: scene
                 },
                 callbackName: {
                     value: callback
@@ -199,9 +205,9 @@ export default class OpenGLScreen extends HTMLDivElement {
                     writable: true,
                     value: function () {
                         const resource = WebGL2RenderingContext.prototype[resourceMethods.create].apply(this, arguments);
-                        if (self[properties.context] != null) {
-                            const contextInfo = self[properties.contextMap].get(self[properties.context]);
-                            contextInfo.resource[resourceName].add(resource);
+                        if (self[properties.scene] != null) {
+                            const sceneContext = self[properties.sceneMap].get(self[properties.scene]);
+                            sceneContext.resource[resourceName].add(resource);
                         }
                         return resource;
                     }
@@ -211,9 +217,9 @@ export default class OpenGLScreen extends HTMLDivElement {
                     writable: true,
                     value: function (resource) {
                         const result = WebGL2RenderingContext.prototype[resourceMethods.delete].apply(this, arguments);
-                        if (self[properties.context] != null) {
-                            const contextInfo = self[properties.contextMap].get(self[properties.context]);
-                            contextInfo.resource[resourceName].delete(resource);
+                        if (self[properties.scene] != null) {
+                            const sceneContext = self[properties.sceneMap].get(self[properties.scene]);
+                            sceneContext.resource[resourceName].delete(resource);
                         }
                         return result;
                     }
@@ -228,43 +234,43 @@ export default class OpenGLScreen extends HTMLDivElement {
     }
 
     /**
-     * Retrieve the context information connecting this screen and context.
-     * Only applicable if the context has been assigned to screen at least once.
-     * @param {OpenGLContext} context
+     * Retrieve the scene information connecting this screen and scene.
+     * Only applicable if the scene has been assigned to screen at least once.
+     * @param {OpenGLScene} scene
      * @returns {object|null}
      */
-    getContextStorage(context) {
-        if (this[properties.contextMap].has(context)) {
-            return this[properties.contextMap].get(context).storage;
+    getSceneContext(scene) {
+        if (this[properties.sceneMap].has(scene)) {
+            return this[properties.sceneMap].get(scene).storage;
         }
         return null;
     }
 
-    getContextError(context) {
-        if (this[properties.contextMap].has(context)) {
-            return this[properties.contextMap].get(context).error;
+    getSceneError(scene) {
+        if (this[properties.sceneMap].has(scene)) {
+            return this[properties.sceneMap].get(scene).error;
         }
         return null;
     }
 
-    resetContextError(context) {
-        if (this[properties.contextMap].has(context)) {
-            const contextInfo = this[properties.contextMap].get(context);
-            if (contextInfo.error != null) {
-                if (this[properties.context] === context) {
-                    this[properties.context] = null;
+    resetSceneError(scene) {
+        if (this[properties.sceneMap].has(scene)) {
+            const sceneContext = this[properties.sceneMap].get(scene);
+            if (sceneContext.error != null) {
+                if (this[properties.scene] === scene) {
+                    this[properties.scene] = null;
                 }
-                this[properties.contextMap].delete(context);
+                this[properties.sceneMap].delete(scene);
             }
         }
         return this;
     }
 
-    freeContextResources(context) {
-        if (this[properties.contextMap].has(context)) {
-            const contextInfo = this[properties.contextMap].get(context);
-            if (contextInfo?.resource != null) {
-                this[methods.freeResources](contextInfo.resource);
+    freeSceneResources(scene) {
+        if (this[properties.sceneMap].has(scene)) {
+            const sceneContext = this[properties.sceneMap].get(scene);
+            if (sceneContext?.resource != null) {
+                this[methods.freeResources](sceneContext.resource);
             }
         }
     }
@@ -292,8 +298,8 @@ export default class OpenGLScreen extends HTMLDivElement {
             screenResizeObserver.observe(this);
         }
         this[methods.resize]();
-        if (this[properties.context] != null) {
-            this[methods.callContext]('onStart', this[properties.context]);
+        if (this[properties.scene] != null) {
+            this[methods.callContext]('onStart', this[properties.scene]);
         }
         this.update();
     }
@@ -305,8 +311,8 @@ export default class OpenGLScreen extends HTMLDivElement {
     disconnectedCallback() {
         this[methods.stopAnimationLoop]();
         screenResizeObserver.unobserve(this);
-        if (this[properties.context] != null) {
-            this[methods.callContext]('onStop', this[properties.context]);
+        if (this[properties.scene] != null) {
+            this[methods.callContext]('onStop', this[properties.scene]);
         }
     }
 
@@ -321,32 +327,32 @@ export default class OpenGLScreen extends HTMLDivElement {
     }
 
     /**
-     * Release a context (calling onRelease) from screen.
-     * This can be used to free any resources allocated for a context
+     * Release a scene (calling onRelease) from screen.
+     * This can be used to free any resources allocated for a scene
      * in a specific screen (resources are screen dependent).
      *
-     * If context is omitted or null/undefined, the current context is released, if any.
-     * @param {OpenGLContext|null} context
+     * If scene is omitted or null/undefined, the current scene is released, if any.
+     * @param {OpenGLScene|null} scene
      */
-    release(context) {
-        if (context == null) {
-            context = this[properties.context];
-            if (context == null) {
+    release(scene) {
+        if (scene == null) {
+            scene = this[properties.scene];
+            if (scene == null) {
                 return;
             }
         }
-        if (!(context instanceof OpenGLContext)) {
-            throw new TypeError('Expected [object OpenGLScreen]::context to be instance of [object OpenGLContext]');
+        if (!(scene instanceof OpenGLScene)) {
+            throw new TypeError('Expected [object OpenGLScreen]::scene to be instance of [object OpenGLScene]');
         }
-        if (this[properties.context] === context) {
-            if (!this[methods.callContext]('onStop', context)) {
-                this[properties.context] = null;
+        if (this[properties.scene] === scene) {
+            if (!this[methods.callContext]('onStop', scene)) {
+                this[properties.scene] = null;
                 return;
             }
-            this[properties.context] = null;
+            this[properties.scene] = null;
         }
-        if (this[methods.callContext]('onRelease', context)) {
-            this[properties.contextMap].delete(context);
+        if (this[methods.callContext]('onRelease', scene)) {
+            this[properties.sceneMap].delete(scene);
         }
     }
 
@@ -355,11 +361,11 @@ export default class OpenGLScreen extends HTMLDivElement {
     }
 
     [methods.startAnimationLoop]() {
-        if (this[properties.context] == null) {
+        if (this[properties.scene] == null) {
             return;
         }
-        const contextInfo = this[properties.contextMap].get(this[properties.context]);
-        if (contextInfo == null || contextInfo.error != null) {
+        const sceneContext = this[properties.sceneMap].get(this[properties.scene]);
+        if (sceneContext == null || sceneContext.error != null) {
             return;
         }
         this[properties.inAnimationLoop] = true;
@@ -379,12 +385,12 @@ export default class OpenGLScreen extends HTMLDivElement {
         this[properties.animationTimer] = null;
         this[properties.inUpdate] = false;
         let method = methods.paint;
-        const context = this[properties.context];
-        if (context == null) {
+        const scene = this[properties.scene];
+        if (scene == null) {
             method = methods.clear;
         } else {
-            const contextInfo = this[properties.contextMap].get(context);
-            if (contextInfo == null || contextInfo.error != null) {
+            const sceneContext = this[properties.sceneMap].get(scene);
+            if (sceneContext == null || sceneContext.error != null) {
                 method = methods.clear;
             }
         }
@@ -398,14 +404,14 @@ export default class OpenGLScreen extends HTMLDivElement {
     }
 
     [events.unload]() {
-        for (const knownContext of this[properties.contextMap]) {
-            const contextInfo = this[properties.contextMap].get(knownContext);
+        for (const knownContext of this[properties.sceneMap]) {
+            const sceneContext = this[properties.sceneMap].get(knownContext);
             try {
-                knownContext.onRelease(contextInfo);
+                knownContext.onRelease(sceneContext);
             } catch {
             }
         }
-        this[properties.contextMap].clear();
+        this[properties.sceneMap].clear();
     }
 
     [methods.clear]() {
@@ -416,15 +422,23 @@ export default class OpenGLScreen extends HTMLDivElement {
     }
 
     [methods.paint]() {
-        const context = this[properties.context];
-        if (context == null) {
+        const scene = this[properties.scene];
+        if (scene == null) {
             return this[methods.clear]();
         }
-        const contextInfo = this[properties.contextMap].get(context);
-        if (contextInfo == null || contextInfo.error != null) {
+        const sceneContext = this[properties.sceneMap].get(scene);
+        if (sceneContext == null || sceneContext.error != null) {
             return this[methods.clear]();
         }
-        if (!this[methods.callContext]('onPaint', context)) {
+        if (this[properties.forceResize] || this.canvas.width !== this.canvas.clientWidth || this.canvas.height !== this.canvas.clientHeight) {
+            if (!this[methods.callContext]('onResize', scene)) {
+                return this[methods.clear]();
+            }
+            if (sceneContext.error != null) {
+                return this[methods.clear]();
+            }
+        }
+        if (!this[methods.callContext]('onPaint', scene)) {
             return this[methods.clear]();
         }
         return true;
@@ -436,8 +450,8 @@ export default class OpenGLScreen extends HTMLDivElement {
         if (this.clientWidth !== canvas.width || this.clientHeight !== canvas.height) {
             canvas.width = this.clientWidth;
             canvas.height = this.clientHeight;
-            if (this[properties.context] != null) {
-                this[methods.callContext]('onResize', this[properties.context]);
+            if (this[properties.scene] != null) {
+                this[methods.callContext]('onResize', this[properties.scene]);
             } else {
                 gl.viewport(0, 0, canvas.width, canvas.height);
                 gl.scissor(0, 0, canvas.width, canvas.height);
