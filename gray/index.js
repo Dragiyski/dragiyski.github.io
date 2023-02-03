@@ -1,13 +1,15 @@
-import './lib/gl-screen.js';
-import { Scene } from './scene/0001-colored-triangle/main.js';
+import './lib/webgpu-screen.js';
+import { Scene } from './scene/0001-colored-triangle/webgpu.js';
 
-let isLoaded = false;
+export let isLoaded = false;
 const scene = new Scene();
 
 async function main() {
+    isLoaded = true;
     await scene.loadResources();
     const canvas = document.getElementById('screen');
     canvas.scene = scene;
+    canvas.passive = false;
 }
 
 if (document.readyState !== 'complete') {
@@ -16,7 +18,6 @@ if (document.readyState !== 'complete') {
     window.addEventListener('beforeunload', onFirstUnloadEvent);
     window.addEventListener('pagehide', onFirstUnloadEvent);
 } else {
-    isLoaded = true;
     main();
 }
 
@@ -31,17 +32,17 @@ function onFirstLoadedEvent() {
     document.removeEventListener('readystatechange', onDocumentStateChangeEvent);
     main().catch(error => {
         console.error(error);
-        unloadOpenGL();
+        unload();
     });
 }
 
 function onFirstUnloadEvent() {
     window.removeEventListener('beforeunload', onFirstUnloadEvent);
     window.removeEventListener('pagehide', onFirstUnloadEvent);
-    unloadOpenGL();
+    unload();
 }
 
-function unloadOpenGL() {
+function unload() {
     isLoaded = false;
     const canvas = document.getElementById('screen');
     canvas.release(scene);
