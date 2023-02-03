@@ -9,7 +9,6 @@ async function main() {
     await scene.loadResources();
     const canvas = document.getElementById('screen');
     canvas.scene = scene;
-    canvas.passive = false;
 }
 
 if (document.readyState !== 'complete') {
