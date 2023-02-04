@@ -1,16 +1,16 @@
 #version 300 es
 
+#if GL_ES
 precision highp float;
 precision highp int;
+#endif
 
-layout (location = 0) in vec2 position;
-layout (location = 1) in vec3 color;
+layout (location = 0) in vec2 vertex;
 
-out vec3 interpolatedColor;
+uniform uvec2 screenSize;
 
-void main()
-{
-    interpolatedColor = color;
+out vec2 position;
 
-    gl_Position = vec4(position, 0.0F, 1.0F);
+void main() {
+    gl_Position = vec4(vertex.xy, 0.0, 1.0);
 }
