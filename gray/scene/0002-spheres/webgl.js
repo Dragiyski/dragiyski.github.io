@@ -12,6 +12,10 @@ async function loadShader(url) {
 export class Scene extends OpenGLScene {
     async loadResources() {
         // TODO: Load sources for the shaders here.
+        const jobs = [
+            loadShader('shaders/camera.glsl').then(source => (this.camera_shader_source = source))
+        ];
+        return Promise.all(jobs);
     }
 
     /**
@@ -33,6 +37,12 @@ export class Scene extends OpenGLScene {
         this.near_frame = 0.1;
         // Diagonal field of view = 60 degrees;
         this.field_of_view = ((60 / 2) / 180) * Math.PI;
+
+        this.camera_program = createProgram(gl, this.camera_shader_source, null, {
+            beforeLink: program => {
+                gl.transformFeedbackVaryings(program, ['ray_direction'], gl.INTERLEAVED_ATTRIBS);
+            }
+        });
     }
 
     /**
