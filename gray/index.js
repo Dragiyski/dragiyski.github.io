@@ -1,5 +1,5 @@
-import './lib/webgpu-screen.js';
-import { Scene } from './scene/0001-colored-triangle/webgpu.js';
+import './lib/gl-screen.js';
+import { Scene } from './scene/0002-spheres/webgl.js';
 
 export let isLoaded = false;
 const scene = new Scene();
