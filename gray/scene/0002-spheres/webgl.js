@@ -13,7 +13,7 @@ export class Scene extends OpenGLScene {
     async loadResources() {
         // TODO: Load sources for the shaders here.
         const jobs = [
-            loadShader('shaders/camera.glsl').then(source => (this.camera_shader_source = source))
+            loadShader('shaders/camera.vertex.glsl').then(source => (this.camera_shader_source = source))
         ];
         return Promise.all(jobs);
     }
@@ -25,24 +25,31 @@ export class Scene extends OpenGLScene {
     onCreate(gl, context) {
         super.onCreate(gl, context);
 
-        // context.program = createProgram(gl, this.vertex_source, this.fragment_source);
-
-        // Here we create the program. Computation of the camera is done in onPaint() as every frame
-        // depends on a parameter that might be changed by mouse movement and other controls.
-
-        // However, the program creation must initialize transform feedback *before* calling linkProgram()
-        this.camera_position = [0, 0, 0]; // The point where the camera is (world coordinaes);
-        this.camera_direction = [0, 1, 0]; // The direction where the camera is pointing (world coordinates);
-        this.world_up = [0, 0, 1]; // +z direction = up;
+        this.view_buffer = gl.createBuffer();
+        this.view_feedback = gl.createTransformFeedback();
         this.near_frame = 0.1;
-        // Diagonal field of view = 60 degrees;
-        this.field_of_view = ((60 / 2) / 180) * Math.PI;
+        this.camera_position = [0, 0, 0];
+        this.camera_direction = [0, 1, 0];
+        this.world_up = [0, 0, 1];
+        this.field_of_view = ((60 / 2) / 180) * Math.PI; // 60 degrees field-of-view
 
         this.camera_program = createProgram(gl, this.camera_shader_source, null, {
             beforeLink: program => {
                 gl.transformFeedbackVaryings(program, ['ray_direction'], gl.INTERLEAVED_ATTRIBS);
             }
         });
+    }
+
+    /**
+     * @param {WebGL2RenderingContext} gl
+     * @param {Object} context
+     */
+    onResize(gl, context) {
+        super.onResize(gl, context);
+
+        gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, this.view_buffer);
+        gl.bufferData(gl.TRANSFORM_FEEDBACK_BUFFER, gl.canvas.width * gl.canvas.height * 3 * 4, gl.STATIC_READ);
+        gl.bindBuffer(gl.TRANSFORM_FEEDBACK_BUFFER, null);
     }
 
     /**
@@ -101,5 +108,25 @@ export class Scene extends OpenGLScene {
         // Screen partial coordinates will be (-860 / 960, 439 / 540) = (-0.895833(3)..., 0.81296(296)...)
         // screen_position = screen_center + (-0.895833(3)... * screen_width_vector, 0.81296(296)... * screen_height_vector) = vec3
         // view_vector = screen_position - camera_position
+
+        gl.enable(gl.RASTERIZER_DISCARD);
+
+        gl.useProgram(this.camera_program);
+        gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, this.view_feedback);
+        gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, this.view_buffer);
+        this.camera_program.uniform.screen_size?.setValue?.(gl.canvas.width, gl.canvas.height);
+        this.camera_program.uniform.world_screen_center?.setArray?.(screen_center);
+        this.camera_program.uniform.world_screen_right?.setArray?.(screen_width_vector);
+        this.camera_program.uniform.world_screen_up?.setArray?.(screen_height_vector);
+        this.camera_program.uniform.camera_position?.setArray?.(this.camera_position);
+        gl.beginTransformFeedback(gl.POINTS);
+        gl.drawArrays(gl.POINTS, 0, gl.canvas.width * gl.canvas.height);
+        gl.endTransformFeedback();
+
+        gl.finish();
+
+        const data = new Float32Array(new ArrayBuffer(gl.canvas.width * gl.canvas.height * 3 * 4));
+        gl.getBufferSubData(gl.TRANSFORM_FEEDBACK_BUFFER, 0, data);
+        debugger;
     }
 }
