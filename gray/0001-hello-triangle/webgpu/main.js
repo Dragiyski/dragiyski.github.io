@@ -1,5 +1,5 @@
-import './lib/gl-screen.js';
-import { Scene } from './scene/0002-camera-fps/webgl/webgl.js';
+import '../../lib/webgpu-screen.js';
+import { Scene } from './scene.js';
 
 export let isLoaded = false;
 const scene = new Scene();

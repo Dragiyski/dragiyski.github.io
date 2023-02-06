@@ -13,14 +13,13 @@ uniform vec3 camera_position;
 // Size of screen in pixels (used by gl_VertexID) to compute x,y;
 uniform uvec2 screen_size;
 
-out vec3 ray_direction;
+out vec4 ray_direction;
 
 void main() {
     // Compute the pixel coordinates for this invocation of the vertex shader;
-    uvec2 pixel_position = uvec2(uint(gl_VertexID) % screen_size.x, uint(gl_VertexID) / screen_size.x);
-    ivec2 half_screen = ivec2(screen_size) / int(2);
-    ivec2 pixel_coords = ivec2(pixel_position) - half_screen;
-    vec2 pixel_normal_coords = vec2(pixel_coords) / vec2(half_screen); // Now x,y is in range [-1, 1]
+    vec2 pixel_position = vec2(mod(float(gl_VertexID), float(screen_size.x)), float(gl_VertexID) / float(screen_size.x));
+    vec2 pixel_normal_coords = vec2(pixel_position) / vec2(screen_size); // Now x,y is in range [0, 1]
+    pixel_normal_coords = pixel_normal_coords * 2.0 - 1.0;
     vec3 screen_point = world_screen_center + pixel_normal_coords.x * world_screen_right + pixel_normal_coords.y * world_screen_up;
-    ray_direction = normalize(screen_point - camera_position);
+    ray_direction = vec4(normalize(screen_point - camera_position), 1.0);
 }

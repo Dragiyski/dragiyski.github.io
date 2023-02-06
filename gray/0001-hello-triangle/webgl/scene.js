@@ -11,10 +11,10 @@ async function loadShader(url) {
 export class Scene extends OpenGLScene {
     async loadResources() {
         const jobs = [
-            loadShader('shaders/vertshader.glsl').then(source => {
+            loadShader('main.vertex.glsl').then(source => {
                 return this.vertex_source = source;
             }),
-            loadShader('shaders/fragshader.glsl').then(source => {
+            loadShader('main.fragment.glsl').then(source => {
                 return this.fragment_source = source;
             })
         ];
