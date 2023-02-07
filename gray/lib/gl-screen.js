@@ -378,6 +378,7 @@ export default class OpenGLScreen extends HTMLDivElement {
         this[properties.inAnimationLoop] = false;
         if (!this[properties.inUpdate] && this[properties.animationTimer] != null) {
             cancelAnimationFrame(this[properties.animationTimer]);
+            this[properties.animationTimer] = null;
         }
     }
 

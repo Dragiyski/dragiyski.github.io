@@ -78,6 +78,9 @@ export class Scene extends OpenGLScene {
         // Required only for reading the data from the RGBA32F textures.
         // Those textures can be given to shaders without this extensions, but they cannot be rendered to screen/framebuffer and thus cannot readPixels().
         gl.getExtension('EXT_color_buffer_float');
+        if ((this.EXT_disjoint_timer_query_webgl2 = gl.getExtension('EXT_disjoint_timer_query_webgl2')) != null) {
+            this.frame_time_query = gl.createQuery();
+        }
 
         this.view_buffer = gl.createBuffer();
         this.view_feedback = gl.createTransformFeedback();
@@ -88,7 +91,7 @@ export class Scene extends OpenGLScene {
         this.view_pitch = 0.0;
         this.world_up = [0, 0, 1];
         this.camera_direction = [0, 1, 0];
-        this.field_of_view = ((60 / 2) / 180) * Math.PI; // 60 degrees field-of-view
+        this.field_of_view = 60;
 
         this.camera_program = createProgram(gl, this.shader_source.camera_ray_generator, null, {
             beforeLink: program => {
@@ -151,7 +154,11 @@ export class Scene extends OpenGLScene {
     onPaint(gl, context) {
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT | gl.STENCIL_BUFFER_BIT);
 
-        reportToDebug('camera_position: ' + reportVector(this.camera_position), 'camera_rotation: ' + reportVector([this.view_yaw, this.view_pitch]));
+        reportToDebug(
+            'camera_position: ' + reportVector(this.camera_position),
+            'camera_rotation: ' + reportVector([this.view_yaw, this.view_pitch]),
+            'field of view: ' + this.field_of_view.toFixed(3)
+        );
         const view_yaw = this.view_yaw / 180 * Math.PI;
         const view_pitch = this.view_pitch / 180 * Math.PI;
         const camera_rotation_matrix = mul_matrix_matrix(mat4_rotation_z(-view_yaw), mat4_rotation_x(view_pitch));
@@ -166,7 +173,8 @@ export class Scene extends OpenGLScene {
         const screen_up = normalize_vector(neg_vector(cross_vector_vector(camera_direction, screen_right)));
         appendDebugLine('screen_right: ' + reportVector(screen_right));
         appendDebugLine('screen_up: ' + reportVector(screen_up));
-        const diagonal_size = Math.tan(this.field_of_view) * this.near_frame;
+        const field_of_view = (this.field_of_view * 0.5) / 180 * Math.PI;
+        const diagonal_size = Math.tan(field_of_view) * this.near_frame;
         const aspect_ratio = this.width / this.height;
         const world_screen_height = diagonal_size / Math.sqrt(1 + aspect_ratio * aspect_ratio);
         const world_screen_width = aspect_ratio * world_screen_height;
@@ -180,6 +188,10 @@ export class Scene extends OpenGLScene {
         // Screen partial coordinates will be (-860 / 960, 439 / 540) = (-0.895833(3)..., 0.81296(296)...)
         // screen_position = screen_center + (-0.895833(3)... * screen_width_vector, 0.81296(296)... * screen_height_vector) = vec3
         // view_vector = screen_position - camera_position
+
+        if (this.EXT_disjoint_timer_query_webgl2 != null) {
+            gl.beginQuery(this.EXT_disjoint_timer_query_webgl2.TIME_ELAPSED_EXT, this.frame_time_query);
+        }
 
         gl.enable(gl.RASTERIZER_DISCARD);
         gl.disable(gl.DEPTH_TEST);
@@ -202,26 +214,26 @@ export class Scene extends OpenGLScene {
 
         // Now the buffer contains the data of the view vectors, upload that to texture.
 
-        {
-            gl.finish();
-            const data = new Float32Array(new ArrayBuffer(this.width * this.height * 4 * 4));
-            gl.getBufferSubData(gl.TRANSFORM_FEEDBACK_BUFFER, 0, data);
-            const center_index = Math.floor(this.width / 2) + Math.floor(this.height / 2) * this.width;
-            const bottom_left_index = 0;
-            const bottom_right_index = this.width - 1;
-            const top_left_index = (this.height - 1) * this.width;
-            const top_right_index = this.width * this.height - 1;
-            const center_vector = data.slice(center_index * 4, center_index * 4 + 3);
-            const bottom_left_vector = data.slice(bottom_left_index * 4, bottom_left_index * 4 + 3);
-            const bottom_right_vector = data.slice(bottom_right_index * 4, bottom_right_index * 4 + 3);
-            const top_left_vector = data.slice(top_left_index * 4, top_left_index * 4 + 3);
-            const top_right_vector = data.slice(top_right_index * 4, top_right_index * 4 + 3);
-            appendDebugLine('computed_screen_front: ' + reportVector([...center_vector]));
-            appendDebugLine('computed_screen_TL: ' + reportVector([...top_left_vector]));
-            appendDebugLine('computed_screen_TR: ' + reportVector([...top_right_vector]));
-            appendDebugLine('computed_screen_BL: ' + reportVector([...bottom_left_vector]));
-            appendDebugLine('computed_screen_BR: ' + reportVector([...bottom_right_vector]));
-        }
+        // {
+        //     gl.finish();
+        //     const data = new Float32Array(new ArrayBuffer(this.width * this.height * 4 * 4));
+        //     gl.getBufferSubData(gl.TRANSFORM_FEEDBACK_BUFFER, 0, data);
+        //     const center_index = Math.floor(this.width / 2) + Math.floor(this.height / 2) * this.width;
+        //     const bottom_left_index = 0;
+        //     const bottom_right_index = this.width - 1;
+        //     const top_left_index = (this.height - 1) * this.width;
+        //     const top_right_index = this.width * this.height - 1;
+        //     const center_vector = data.slice(center_index * 4, center_index * 4 + 3);
+        //     const bottom_left_vector = data.slice(bottom_left_index * 4, bottom_left_index * 4 + 3);
+        //     const bottom_right_vector = data.slice(bottom_right_index * 4, bottom_right_index * 4 + 3);
+        //     const top_left_vector = data.slice(top_left_index * 4, top_left_index * 4 + 3);
+        //     const top_right_vector = data.slice(top_right_index * 4, top_right_index * 4 + 3);
+        //     appendDebugLine('computed_screen_front: ' + reportVector([...center_vector]));
+        //     appendDebugLine('computed_screen_TL: ' + reportVector([...top_left_vector]));
+        //     appendDebugLine('computed_screen_TR: ' + reportVector([...top_right_vector]));
+        //     appendDebugLine('computed_screen_BL: ' + reportVector([...bottom_left_vector]));
+        //     appendDebugLine('computed_screen_BR: ' + reportVector([...bottom_right_vector]));
+        // }
 
         gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, null);
         gl.bindBuffer(gl.PIXEL_UNPACK_BUFFER, this.view_buffer);
@@ -263,6 +275,20 @@ export class Scene extends OpenGLScene {
         gl.bindBuffer(gl.PIXEL_UNPACK_BUFFER, null);
 
         gl.useProgram(null);
+
+        if (this.EXT_disjoint_timer_query_webgl2 != null) {
+            gl.endQuery(this.EXT_disjoint_timer_query_webgl2.TIME_ELAPSED_EXT);
+            const getResult = () => {
+                if (gl.getQueryParameter(this.frame_time_query, gl.QUERY_RESULT_AVAILABLE)) {
+                    let time = gl.getQueryParameter(this.frame_time_query, gl.QUERY_RESULT);
+                    time /= 1e6;
+                    document.getElementById('frame-info').textContent = `${time.toFixed(3)}ms`;
+                } else {
+                    setTimeout(getResult, 0);
+                }
+            };
+            setTimeout(getResult, 0);
+        }
     }
 }
 
