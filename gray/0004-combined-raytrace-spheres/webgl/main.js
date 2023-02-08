@@ -1,4 +1,5 @@
 import '../../lib/gl-screen.js';
+import { add_vector_vector, mul_number_vector, neg_vector } from '../../lib/math.js';
 import { Scene } from './scene.js';
 
 export let isLoaded = false;
@@ -59,6 +60,39 @@ function onKeyDown(event) {
     if (event.key === 'p') {
         event.preventDefault();
         screen.passive = !screen.passive;
+        return;
+    }
+    if (event.key === 'w') {
+        event.preventDefault();
+        const camera_triple = screen.scene.getCameraTriple();
+        const camera_position = screen.scene.camera_position;
+        screen.scene.camera_position = add_vector_vector(camera_position, mul_number_vector(0.1, camera_triple[2]));
+        screen.update();
+        return;
+    }
+    if (event.key === 's') {
+        event.preventDefault();
+        const camera_triple = screen.scene.getCameraTriple();
+        const camera_position = screen.scene.camera_position;
+        screen.scene.camera_position = add_vector_vector(camera_position, mul_number_vector(0.1, neg_vector(camera_triple[2])));
+        screen.update();
+        return;
+    }
+
+    if (event.key === 'd') {
+        event.preventDefault();
+        const camera_triple = screen.scene.getCameraTriple();
+        const camera_position = screen.scene.camera_position;
+        screen.scene.camera_position = add_vector_vector(camera_position, mul_number_vector(0.1, camera_triple[0]));
+        screen.update();
+        return;
+    }
+    if (event.key === 'a') {
+        event.preventDefault();
+        const camera_triple = screen.scene.getCameraTriple();
+        const camera_position = screen.scene.camera_position;
+        screen.scene.camera_position = add_vector_vector(camera_position, mul_number_vector(0.1, neg_vector(camera_triple[0])));
+        screen.update();
         return;
     }
     console.log(event);

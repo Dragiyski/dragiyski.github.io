@@ -28,12 +28,8 @@ export class Scene extends OpenGLScene {
         // TODO: Load sources for the shaders here.
         this.shader_source = {};
         const jobs = [
-            loadShader('shader/camera-ray-generator.fragment.glsl').then(source => (this.shader_source.camera_ray_generator_fragment = source)),
-            loadShader('shader/compute-center.vertex.glsl').then(source => (this.shader_source.compute_center_vertex = source)),
             loadShader('shader/compute-normal.vertex.glsl').then(source => (this.shader_source.compute_normal_vertex = source)),
-            loadShader('shader/screen-camera-ray-preview.fragment.glsl').then(source => (this.shader_source.screen_camera_ray_preview_fragment = source)),
-            loadShader('shader/raytrace-init.fragment.glsl').then(source => (this.shader_source.raytrace_init_fragment = source)),
-            loadShader('shader/raytrace-sphere.fragment.glsl').then(source => (this.shader_source.raytrace_sphere_fragment = source))
+            loadShader('shader/raytrace.fragment.glsl').then(source => (this.shader_source.raytrace_fragment = source))
         ];
         return Promise.all(jobs);
     }
@@ -54,12 +50,12 @@ export class Scene extends OpenGLScene {
         }
 
         this.near_frame = 0.1;
-        this.camera_position = [0, 0, 0];
+        this.camera_position = [0, -20, 0];
         this.view_yaw = 0.0;
         this.view_pitch = 0.0;
         this.world_up = [0, 0, 1];
         this.camera_direction = [0, 1, 0];
-        this.field_of_view = 60;
+        this.field_of_view = 90;
 
         {
             const compute_vertex_data = Float32Array.from([
@@ -90,16 +86,58 @@ export class Scene extends OpenGLScene {
             gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
         }
 
-        this.camera_program = createProgram(gl, this.shader_source.compute_center_vertex, this.shader_source.camera_ray_generator_fragment);
-        this.ray_direction_texture = gl.createTexture();
-        this.ray_direction_framebuffer = gl.createFramebuffer();
+        this.raytrace_program = createProgram(gl, this.shader_source.compute_normal_vertex, this.shader_source.raytrace_fragment);
 
-        this.raytrace_init_program = createProgram(gl, this.shader_source.compute_normal_vertex, this.shader_source.raytrace_init_fragment);
-        this.raytrace_texture = gl.createTexture();
-        this.raytrace_framebuffer = gl.createFramebuffer();
-        this.raytrace_sphere_program = createProgram(gl, this.shader_source.compute_normal_vertex, this.shader_source.raytrace_sphere_fragment);
+        this.sphere_texture = gl.createTexture();
+        const sphere_data = Float32Array.from([
+            5, 30, 0, 2, 1.0, 0.5, 0.0, 1.0,
+            -2, 52, -4, 3.2, 1.0, 0.5, 0.0, 1.0,
+            -5.5, 52, -4, 2.5, 1.0, 0.5, 0.0, 1.0,
+            -11, 16, 10, 2, 1.0, 0.5, 0.0, 1.0,
+            0, 0, 0, 160, 0.5, 0.5, 0.5, 1.0
+        ]);
+        gl.bindTexture(gl.TEXTURE_2D, this.sphere_texture);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_BASE_LEVEL, 0);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAX_LEVEL, 0);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texImage2D(
+            gl.TEXTURE_2D,
+            0,
+            gl.RGBA32F,
+            Math.floor((sphere_data.byteLength / sphere_data.BYTES_PER_ELEMENT) / 4),
+            1,
+            0,
+            gl.RGBA,
+            gl.FLOAT,
+            sphere_data
+        );
+        gl.bindTexture(gl.TEXTURE_2D, null);
 
-        this.preview_program = createProgram(gl, this.shader_source.compute_normal_vertex, this.shader_source.screen_camera_ray_preview_fragment);
+        this.light_texture = gl.createTexture();
+        const light_data = Float32Array.from([
+            -30, -70, 40, 1.0
+        ]);
+        gl.bindTexture(gl.TEXTURE_2D, this.light_texture);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_BASE_LEVEL, 0);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAX_LEVEL, 0);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texImage2D(
+            gl.TEXTURE_2D,
+            0,
+            gl.RGBA32F,
+            Math.floor((light_data.byteLength / light_data.BYTES_PER_ELEMENT) / 4),
+            1,
+            0,
+            gl.RGBA,
+            gl.FLOAT,
+            light_data
+        );
+        gl.bindTexture(gl.TEXTURE_2D, null);
+
+        this.test_fbo = gl.createFramebuffer();
+        this.test_tex = gl.createTexture();
 
         gl.clearColor(0.2, 0.5, 0.7, 1.0);
     }
@@ -113,21 +151,24 @@ export class Scene extends OpenGLScene {
         this.width = gl.canvas.width;
         this.height = gl.canvas.height;
 
-        gl.bindTexture(gl.TEXTURE_2D, this.ray_direction_texture);
+        gl.bindTexture(gl.TEXTURE_2D, this.test_tex);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_BASE_LEVEL, 0);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAX_LEVEL, 0);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
         gl.texStorage2D(gl.TEXTURE_2D, 1, gl.RGBA32F, this.width, this.height);
         gl.bindTexture(gl.TEXTURE_2D, null);
+    }
 
-        gl.bindTexture(gl.TEXTURE_2D, this.raytrace_texture);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_BASE_LEVEL, 0);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAX_LEVEL, 0);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-        gl.texStorage2D(gl.TEXTURE_2D, 1, gl.RGBA32F, this.width, this.height);
-        gl.bindTexture(gl.TEXTURE_2D, null);
+    getCameraTriple() {
+        const view_yaw = this.view_yaw / 180 * Math.PI;
+        const view_pitch = this.view_pitch / 180 * Math.PI;
+        const camera_rotation_matrix = mul_matrix_matrix(mat4_rotation_z(-view_yaw), mat4_rotation_x(view_pitch));
+        let camera_direction = mul_matrix_vector(camera_rotation_matrix, [...this.camera_direction, 1]); // +y = front = north;
+        camera_direction = normalize_vector(div_vector_number(camera_direction.slice(0, 3), camera_direction[3]));
+        const screen_right = normalize_vector(cross_vector_vector(camera_direction, this.world_up));
+        const screen_up = normalize_vector(neg_vector(cross_vector_vector(camera_direction, screen_right)));
+        return [screen_right, screen_up, camera_direction];
     }
 
     /**
@@ -168,40 +209,31 @@ export class Scene extends OpenGLScene {
         gl.disable(gl.CULL_FACE);
         gl.disable(gl.DITHER);
 
-        gl.useProgram(this.camera_program);
-        gl.bindFramebuffer(gl.FRAMEBUFFER, this.ray_direction_framebuffer);
-        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.ray_direction_texture, 0);
-        this.camera_program.uniform.world_screen_center?.setArray?.(screen_center);
-        this.camera_program.uniform.world_screen_right?.setArray?.(screen_width_vector);
-        this.camera_program.uniform.world_screen_up?.setArray?.(screen_height_vector);
-        this.camera_program.uniform.camera_position?.setArray?.(this.camera_position);
-        this.camera_program.uniform.screen_size?.setValue?.(this.width, this.height);
-        gl.bindVertexArray(this.compute_vertex_array);
-        gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_BYTE, 0);
-        gl.bindVertexArray(null);
-
-        gl.useProgram(this.raytrace_sphere_program);
-        gl.bindFramebuffer(gl.FRAMEBUFFER, this.raytrace_framebuffer);
-        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.raytrace_texture, 0);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        // gl.bindFramebuffer(gl.FRAMEBUFFER, this.test_fbo);
+        // gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.test_tex, 0);
+        gl.useProgram(this.raytrace_program);
         gl.activeTexture(gl.TEXTURE0);
         gl.bindTexture(gl.TEXTURE_2D, this.ray_direction_texture);
-        this.raytrace_sphere_program.uniform.ray_direction_texture?.setValue?.(0);
-        this.raytrace_sphere_program.uniform.ray_origin?.setArray?.(this.camera_position);
-        this.raytrace_sphere_program.uniform.sphere_origin?.setValue?.(0, 20, 0);
-        this.raytrace_sphere_program.uniform.sphere_radius?.setValue?.(1);
+        this.raytrace_program.uniform.ray_direction_texture?.setValue?.(0);
+        gl.activeTexture(gl.TEXTURE1);
+        gl.bindTexture(gl.TEXTURE_2D, this.sphere_texture);
+        this.raytrace_program.uniform.sphere_data?.setValue?.(1);
+        gl.activeTexture(gl.TEXTURE2);
+        gl.bindTexture(gl.TEXTURE_2D, this.light_texture);
+        this.raytrace_program.uniform.light_data?.setValue?.(2);
+        this.raytrace_program.uniform.camera_position?.setArray?.(this.camera_position);
+        this.raytrace_program.uniform.world_screen_center?.setArray?.(screen_center);
+        this.raytrace_program.uniform.world_screen_right?.setArray?.(screen_width_vector);
+        this.raytrace_program.uniform.world_screen_up?.setArray?.(screen_height_vector);
         gl.bindVertexArray(this.compute_vertex_array);
         gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_BYTE, 0);
         gl.bindVertexArray(null);
 
-        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-        gl.useProgram(this.preview_program);
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, this.raytrace_texture);
-        this.preview_program.uniform.color_texture?.setValue(0);
-        gl.bindVertexArray(this.compute_vertex_array);
-        gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_BYTE, 0);
-        gl.bindVertexArray(null);
-        gl.bindTexture(gl.TEXTURE_2D, null);
+        // gl.finish();
+        // const data = new Float32Array(this.width * this.height * 4);
+        // gl.readPixels(0, 0, this.width, this.height, gl.RGBA, gl.FLOAT, data);
+        // debugger;
 
         if (this.EXT_disjoint_timer_query_webgl2 != null) {
             gl.endQuery(this.EXT_disjoint_timer_query_webgl2.TIME_ELAPSED_EXT);
