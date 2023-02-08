@@ -26,9 +26,9 @@ async function loadShader(url) {
 export class Scene extends OpenGLScene {
     constructor() {
         super();
-        this.near_frame = 0.1;
+        this.near_frame = 1.0;
         this.world_up = [0, 0, 1];
-        this.field_of_view = 75;
+        this.field_of_view = 60;
         this.controls = {
             mouse_speed_x: 0.75,
             mouse_speed_y: 0.75,
@@ -40,6 +40,8 @@ export class Scene extends OpenGLScene {
             yaw: 0.0,
             pitch: 0.0,
             move_speed: [0, 0, 0],
+            keyboard_move_positive: [0, 0, 0],
+            keyboard_move_negative: [0, 0, 0],
             timestamp: null
         };
     }
@@ -181,14 +183,26 @@ export class Scene extends OpenGLScene {
     }
 
     getCameraTriple() {
-        const view_yaw = this.view_yaw / 180 * Math.PI;
-        const view_pitch = this.view_pitch / 180 * Math.PI;
+        const view_yaw = this.camera.yaw;
+        const view_pitch = this.camera.pitch;
         const camera_rotation_matrix = mul_matrix_matrix(mat4_rotation_z(-view_yaw), mat4_rotation_x(view_pitch));
         let camera_direction = mul_matrix_vector(camera_rotation_matrix, [...this.camera_direction, 1]); // +y = front = north;
         camera_direction = normalize_vector(div_vector_number(camera_direction.slice(0, 3), camera_direction[3]));
         const screen_right = normalize_vector(cross_vector_vector(camera_direction, this.world_up));
         const screen_up = normalize_vector(neg_vector(cross_vector_vector(camera_direction, screen_right)));
         return [screen_right, screen_up, camera_direction];
+    }
+
+    updateCameraSpeed() {
+        const keyboardSpeed = sub_vector_vector(this.camera.keyboard_move_positive, this.camera.keyboard_move_negative);
+        // TODO: Additional vectors might be added from joystick.
+        // The final speed vector will be normalized, so only direction is affected.
+        // (For joystick, we may add speed factor to minimize the speed as fraction of maximum).
+        if (length_vector(keyboardSpeed) < 0.001) {
+            this.camera.move_speed = [0, 0, 0];
+        } else {
+            this.camera.move_speed = normalize_vector(keyboardSpeed);
+        }
     }
 
     /**
@@ -203,26 +217,27 @@ export class Scene extends OpenGLScene {
 
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT | gl.STENCIL_BUFFER_BIT);
 
-        const view_yaw = this.camera.yaw;
-        const view_pitch = this.camera.pitch;
-        const camera_rotation_matrix = mul_matrix_matrix(mat4_rotation_z(-view_yaw), mat4_rotation_x(view_pitch));
-        let camera_direction = mul_matrix_vector(camera_rotation_matrix, [...this.camera_direction, 1]); // +y = front = north;
-        camera_direction = normalize_vector(div_vector_number(camera_direction.slice(0, 3), camera_direction[3]));
-        let camera_position = this.camera_position;
-        if (this.camera.timestamp != null) {
-            const factor = (performance.now() - this.camera.timestamp) * 1e-3;
-            console.log('factor: ' + factor);
-        }
-        const world_screen_center = add_vector_vector(camera_position, mul_number_vector(this.near_frame, camera_direction));
-        const screen_right = normalize_vector(cross_vector_vector(camera_direction, this.world_up));
-        const screen_up = normalize_vector(neg_vector(cross_vector_vector(camera_direction, screen_right)));
+        // Compute first-person camera screen
+        const camera_triple = this.getCameraTriple();
         const field_of_view = (this.field_of_view * 0.5) / 180 * Math.PI;
-        const diagonal_size = Math.tan(field_of_view) * this.near_frame;
         const aspect_ratio = this.width / this.height;
+        const diagonal_size = Math.tan(field_of_view) * this.near_frame;
         const world_screen_height = diagonal_size / Math.sqrt(1 + aspect_ratio * aspect_ratio);
         const world_screen_width = aspect_ratio * world_screen_height;
-        const world_screen_up = mul_number_vector(world_screen_height, screen_up);
-        const world_screen_right = mul_number_vector(world_screen_width, screen_right);
+        const world_screen_up = mul_number_vector(world_screen_height, camera_triple[1]);
+        const world_screen_right = mul_number_vector(world_screen_width, camera_triple[0]);
+        if (this.camera.timestamp != null) {
+            const factor = (performance.now() - this.camera.timestamp) * 1e-3;
+            const move_offset = mul_number_vector(factor * this.controls.move_speed, this.camera.move_speed);
+            let move_vector = [0, 0, 0];
+            for (let i = 0; i < 3; ++i) {
+                const move_direction = mul_number_vector(move_offset[i], camera_triple[i]);
+                move_vector = add_vector_vector(move_vector, move_direction);
+            }
+            this.camera_position = add_vector_vector(this.camera_position, move_vector);
+        }
+        const camera_position = this.camera_position;
+        const world_screen_center = add_vector_vector(camera_position, mul_number_vector(this.near_frame, camera_triple[2]));
 
         if (this.EXT_disjoint_timer_query_webgl2 != null) {
             gl.beginQuery(this.EXT_disjoint_timer_query_webgl2.TIME_ELAPSED_EXT, this.frame_time_query);

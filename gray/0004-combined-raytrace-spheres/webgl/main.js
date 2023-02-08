@@ -11,6 +11,7 @@ async function main() {
     const screen = document.getElementById('screen');
     screen.scene = scene;
     window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keyup', onKeyUp);
     window.addEventListener('click', onWindowClick);
     document.addEventListener('mousemove', onMouseMove);
     document.addEventListener('pointerlockchange', onLockPointerChange);
@@ -70,7 +71,7 @@ function onMouseMove(event) {
     const pitchChange = (event.movementY / diagonal) * scene.controls.mouse_speed_y * Math.PI * 2;
     scene.camera.yaw = (Math.PI * 2 + scene.camera.yaw + yawChange) % (Math.PI * 2);
     scene.camera.pitch = Math.max(-Math.PI * 0.5, Math.min(Math.PI * 0.5, scene.camera.pitch - pitchChange));
-    console.log([scene.camera.yaw, scene.camera.pitch]);
+    console.log([yawChange, pitchChange]);
 }
 
 /**
@@ -86,6 +87,89 @@ function onKeyDown(event) {
             event.preventDefault();
             document.exitPointerLock();
             console.log('[pointer-lock]: off');
+        }
+    } else if (event.key === 'w') {
+        if (screen.scene?.camera?.keyboard_move_positive != null && typeof screen.scene?.updateCameraSpeed === 'function') {
+            event.preventDefault();
+            screen.scene.camera.keyboard_move_positive[2] = 1;
+            screen.scene.updateCameraSpeed();
+        }
+    } else if (event.key === 's') {
+        if (screen.scene?.camera?.keyboard_move_negative != null && typeof screen.scene?.updateCameraSpeed === 'function') {
+            event.preventDefault();
+            screen.scene.camera.keyboard_move_negative[2] = 1;
+            screen.scene.updateCameraSpeed();
+        }
+    } else if (event.key === 'a') {
+        if (screen.scene?.camera?.keyboard_move_negative != null && typeof screen.scene?.updateCameraSpeed === 'function') {
+            event.preventDefault();
+            screen.scene.camera.keyboard_move_negative[0] = 1;
+            screen.scene.updateCameraSpeed();
+        }
+    } else if (event.key === 'd') {
+        if (screen.scene?.camera?.keyboard_move_positive != null && typeof screen.scene?.updateCameraSpeed === 'function') {
+            event.preventDefault();
+            screen.scene.camera.keyboard_move_positive[0] = 1;
+            screen.scene.updateCameraSpeed();
+        }
+    } else if (event.key === 'e') {
+        if (screen.scene?.camera?.keyboard_move_negative != null && typeof screen.scene?.updateCameraSpeed === 'function') {
+            event.preventDefault();
+            screen.scene.camera.keyboard_move_negative[1] = 1;
+            screen.scene.updateCameraSpeed();
+        }
+    } else if (event.key === 'q') {
+        if (screen.scene?.camera?.keyboard_move_positive != null && typeof screen.scene?.updateCameraSpeed === 'function') {
+            event.preventDefault();
+            screen.scene.camera.keyboard_move_positive[1] = 1;
+            screen.scene.updateCameraSpeed();
+        }
+    }
+}
+
+/**
+ * @param {KeyboardEvent} event
+ */
+function onKeyUp(event) {
+    if (event.isComposing || event.keyCode === 229) {
+        return;
+    }
+    const screen = document.getElementById('screen');
+    if (event.key === 'w') {
+        if (screen.scene?.camera?.keyboard_move_positive != null && typeof screen.scene?.updateCameraSpeed === 'function') {
+            event.preventDefault();
+            screen.scene.camera.keyboard_move_positive[2] = 0;
+            screen.scene.updateCameraSpeed();
+        }
+    } else if (event.key === 's') {
+        if (screen.scene?.camera?.keyboard_move_negative != null && typeof screen.scene?.updateCameraSpeed === 'function') {
+            event.preventDefault();
+            screen.scene.camera.keyboard_move_negative[2] = 0;
+            screen.scene.updateCameraSpeed();
+        }
+    } else if (event.key === 'a') {
+        if (screen.scene?.camera?.keyboard_move_negative != null && typeof screen.scene?.updateCameraSpeed === 'function') {
+            event.preventDefault();
+            screen.scene.camera.keyboard_move_negative[0] = 0;
+            screen.scene.updateCameraSpeed();
+        }
+    } else if (event.key === 'd') {
+        if (screen.scene?.camera?.keyboard_move_positive != null && typeof screen.scene?.updateCameraSpeed === 'function') {
+            event.preventDefault();
+            screen.scene.camera.keyboard_move_positive[0] = 0;
+            screen.scene.updateCameraSpeed();
+        }
+    } else if (event.key === 'e') {
+        if (screen.scene?.camera?.keyboard_move_negative != null && typeof screen.scene?.updateCameraSpeed === 'function') {
+            event.preventDefault();
+            screen.scene.camera.keyboard_move_negative[1] = 0;
+            screen.scene.updateCameraSpeed();
+        }
+    } else if (event.key === 'q') {
+        if (screen.scene?.camera?.keyboard_move_positive != null && typeof screen.scene?.updateCameraSpeed === 'function') {
+            event.preventDefault();
+            screen.scene.camera.keyboard_move_positive[1] = 0;
+            screen.scene.updateCameraSpeed();
         }
     }
 }
