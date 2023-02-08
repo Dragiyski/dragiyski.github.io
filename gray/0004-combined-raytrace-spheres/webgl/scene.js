@@ -24,6 +24,26 @@ async function loadShader(url) {
 }
 
 export class Scene extends OpenGLScene {
+    constructor() {
+        super();
+        this.near_frame = 0.1;
+        this.world_up = [0, 0, 1];
+        this.field_of_view = 75;
+        this.controls = {
+            mouse_speed_x: 0.75,
+            mouse_speed_y: 0.75,
+            move_speed: 4
+        };
+        this.camera = {
+            position: [0, 0, 0],
+            direction: [0, 1, 0],
+            yaw: 0.0,
+            pitch: 0.0,
+            move_speed: [0, 0, 0],
+            timestamp: null
+        };
+    }
+
     async loadResources() {
         // TODO: Load sources for the shaders here.
         this.shader_source = {};
@@ -50,7 +70,7 @@ export class Scene extends OpenGLScene {
         }
 
         this.near_frame = 0.1;
-        this.camera_position = [0, -20, 0];
+        this.camera_position = [0, 0, 0];
         this.view_yaw = 0.0;
         this.view_pitch = 0.0;
         this.world_up = [0, 0, 1];
@@ -183,12 +203,17 @@ export class Scene extends OpenGLScene {
 
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT | gl.STENCIL_BUFFER_BIT);
 
-        const view_yaw = this.view_yaw / 180 * Math.PI;
-        const view_pitch = this.view_pitch / 180 * Math.PI;
+        const view_yaw = this.camera.yaw;
+        const view_pitch = this.camera.pitch;
         const camera_rotation_matrix = mul_matrix_matrix(mat4_rotation_z(-view_yaw), mat4_rotation_x(view_pitch));
         let camera_direction = mul_matrix_vector(camera_rotation_matrix, [...this.camera_direction, 1]); // +y = front = north;
         camera_direction = normalize_vector(div_vector_number(camera_direction.slice(0, 3), camera_direction[3]));
-        const screen_center = add_vector_vector(this.camera_position, mul_number_vector(this.near_frame, camera_direction));
+        let camera_position = this.camera_position;
+        if (this.camera.timestamp != null) {
+            const factor = (performance.now() - this.camera.timestamp) * 1e-3;
+            console.log('factor: ' + factor);
+        }
+        const world_screen_center = add_vector_vector(camera_position, mul_number_vector(this.near_frame, camera_direction));
         const screen_right = normalize_vector(cross_vector_vector(camera_direction, this.world_up));
         const screen_up = normalize_vector(neg_vector(cross_vector_vector(camera_direction, screen_right)));
         const field_of_view = (this.field_of_view * 0.5) / 180 * Math.PI;
@@ -196,8 +221,8 @@ export class Scene extends OpenGLScene {
         const aspect_ratio = this.width / this.height;
         const world_screen_height = diagonal_size / Math.sqrt(1 + aspect_ratio * aspect_ratio);
         const world_screen_width = aspect_ratio * world_screen_height;
-        const screen_height_vector = mul_number_vector(world_screen_height, screen_up);
-        const screen_width_vector = mul_number_vector(world_screen_width, screen_right);
+        const world_screen_up = mul_number_vector(world_screen_height, screen_up);
+        const world_screen_right = mul_number_vector(world_screen_width, screen_right);
 
         if (this.EXT_disjoint_timer_query_webgl2 != null) {
             gl.beginQuery(this.EXT_disjoint_timer_query_webgl2.TIME_ELAPSED_EXT, this.frame_time_query);
@@ -222,10 +247,10 @@ export class Scene extends OpenGLScene {
         gl.activeTexture(gl.TEXTURE2);
         gl.bindTexture(gl.TEXTURE_2D, this.light_texture);
         this.raytrace_program.uniform.light_data?.setValue?.(2);
-        this.raytrace_program.uniform.camera_position?.setArray?.(this.camera_position);
-        this.raytrace_program.uniform.world_screen_center?.setArray?.(screen_center);
-        this.raytrace_program.uniform.world_screen_right?.setArray?.(screen_width_vector);
-        this.raytrace_program.uniform.world_screen_up?.setArray?.(screen_height_vector);
+        this.raytrace_program.uniform.camera_position?.setArray?.(camera_position);
+        this.raytrace_program.uniform.world_screen_center?.setArray?.(world_screen_center);
+        this.raytrace_program.uniform.world_screen_right?.setArray?.(world_screen_right);
+        this.raytrace_program.uniform.world_screen_up?.setArray?.(world_screen_up);
         gl.bindVertexArray(this.compute_vertex_array);
         gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_BYTE, 0);
         gl.bindVertexArray(null);
@@ -239,6 +264,8 @@ export class Scene extends OpenGLScene {
             gl.endQuery(this.EXT_disjoint_timer_query_webgl2.TIME_ELAPSED_EXT);
             this.updateFrameTime(gl);
         }
+
+        this.camera.timestamp = performance.now();
     }
 
     updateFrameTime(gl) {

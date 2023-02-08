@@ -11,91 +11,83 @@ async function main() {
     const screen = document.getElementById('screen');
     screen.scene = scene;
     window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('click', onWindowClick);
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('pointerlockchange', onLockPointerChange);
+}
+
+function onWindowClick(event) {
+    if (event.button !== 0) {
+        return;
+    }
+    const screen = document.getElementById('screen');
+    if (document.pointerLockElement === screen) {
+        return;
+    }
+    if (document.pointerLockElement != null) {
+        return;
+    }
+    event.preventDefault();
+    const maybePromise = screen.canvas.requestPointerLock({
+        unadjustedMovement: true
+    });
+    if (!maybePromise) {
+        console.error('Unable to request pointer lock with unadjustedMovement option');
+        document.exitPointerLock();
+    }
+    maybePromise.then(() => {
+    }, error => {
+        screen.canvas.requestPointerLock();
+    });
+}
+
+function onLockPointerChange(event) {
+    const screen = document.getElementById('screen');
+    if (document.pointerLockElement === screen) {
+        screen.passive = false;
+        console.log('[pointer-lock]: on');
+    } else {
+        screen.passive = true;
+        if (screen.scene?.camera != null) {
+            screen.scene.camera.timestamp = null;
+        }
+        console.log('[pointer-lock]: off');
+    }
+}
+
+function onMouseMove(event) {
+    const screen = document.getElementById('screen');
+    if (document.pointerLockElement !== screen) {
+        return;
+    }
+    const canvas = screen.canvas;
+    const scene = screen.scene;
+    if (scene == null) {
+        return;
+    }
+    const diagonal = Math.sqrt(canvas.width * canvas.width + canvas.height * canvas.height);
+    const yawChange = (event.movementX / diagonal) * scene.controls.mouse_speed_x * Math.PI * 2;
+    const pitchChange = (event.movementY / diagonal) * scene.controls.mouse_speed_y * Math.PI * 2;
+    scene.camera.yaw = (Math.PI * 2 + scene.camera.yaw + yawChange) % (Math.PI * 2);
+    scene.camera.pitch = Math.max(-Math.PI * 0.5, Math.min(Math.PI * 0.5, scene.camera.pitch - pitchChange));
+    console.log([scene.camera.yaw, scene.camera.pitch]);
 }
 
 /**
  * @param {KeyboardEvent} event
  */
 function onKeyDown(event) {
-    if (event.ctrlKey || event.altKey || event.metaKey || event.shiftKey) {
+    if (event.isComposing || event.keyCode === 229) {
         return;
     }
     const screen = document.getElementById('screen');
-    if (event.key === 'ArrowRight') {
-        event.preventDefault();
-        screen.scene.view_yaw = (screen.scene.view_yaw + 1) % 360;
-        screen.update();
-        return;
+    if (event.key === 'Escape') {
+        if (document.pointerLockElement === screen) {
+            event.preventDefault();
+            document.exitPointerLock();
+            console.log('[pointer-lock]: off');
+        }
     }
-    if (event.key === 'ArrowLeft') {
-        event.preventDefault();
-        screen.scene.view_yaw = (360 + screen.scene.view_yaw - 1) % 360;
-        screen.update();
-        return;
-    }
-    if (event.key === 'ArrowUp') {
-        event.preventDefault();
-        screen.scene.view_pitch = Math.max(-90, Math.min(90, screen.scene.view_pitch + 1));
-        screen.update();
-        return;
-    }
-    if (event.key === 'ArrowDown') {
-        event.preventDefault();
-        screen.scene.view_pitch = Math.max(-90, Math.min(90, screen.scene.view_pitch - 1));
-        screen.update();
-        return;
-    }
-    if (event.key === 'i') {
-        event.preventDefault();
-        screen.scene.field_of_view = Math.max(1, Math.min(179, screen.scene.field_of_view - 1));
-        screen.update();
-        return;
-    }
-    if (event.key === 'o') {
-        event.preventDefault();
-        screen.scene.field_of_view = Math.max(1, Math.min(179, screen.scene.field_of_view + 1));
-        screen.update();
-        return;
-    }
-    if (event.key === 'p') {
-        event.preventDefault();
-        screen.passive = !screen.passive;
-        return;
-    }
-    if (event.key === 'w') {
-        event.preventDefault();
-        const camera_triple = screen.scene.getCameraTriple();
-        const camera_position = screen.scene.camera_position;
-        screen.scene.camera_position = add_vector_vector(camera_position, mul_number_vector(0.1, camera_triple[2]));
-        screen.update();
-        return;
-    }
-    if (event.key === 's') {
-        event.preventDefault();
-        const camera_triple = screen.scene.getCameraTriple();
-        const camera_position = screen.scene.camera_position;
-        screen.scene.camera_position = add_vector_vector(camera_position, mul_number_vector(0.1, neg_vector(camera_triple[2])));
-        screen.update();
-        return;
-    }
-
-    if (event.key === 'd') {
-        event.preventDefault();
-        const camera_triple = screen.scene.getCameraTriple();
-        const camera_position = screen.scene.camera_position;
-        screen.scene.camera_position = add_vector_vector(camera_position, mul_number_vector(0.1, camera_triple[0]));
-        screen.update();
-        return;
-    }
-    if (event.key === 'a') {
-        event.preventDefault();
-        const camera_triple = screen.scene.getCameraTriple();
-        const camera_position = screen.scene.camera_position;
-        screen.scene.camera_position = add_vector_vector(camera_position, mul_number_vector(0.1, neg_vector(camera_triple[0])));
-        screen.update();
-        return;
-    }
-    console.log(event);
 }
 
 if (document.readyState !== 'complete') {
