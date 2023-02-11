@@ -50,6 +50,9 @@ export default class OpenGLScreen extends HTMLDivElement {
         this[properties.inAnimationLoop] = this[properties.inUpdate] = false;
         const shadowRoot = this.attachShadow({ mode: 'open' });
         const canvas = this.ownerDocument.createElement('canvas');
+        canvas.style.width = '100%';
+        canvas.style.height = '100%';
+        // canvas.style.imageRendering = 'optimizeQuality';
         const gl = this[properties.gl] = canvas.getContext('webgl2');
         this[properties.neutralState] = getState(gl);
         this[methods.wrapContextResourceMethods](gl);
@@ -127,7 +130,7 @@ export default class OpenGLScreen extends HTMLDivElement {
                 this[methods.callContext]('onCreate', this[properties.scene] = scene);
             }
             this[methods.callContext]('onStart', this[properties.scene] = scene);
-            this[methods.callContext]('onResize', scene);
+            // this[methods.callContext]('onResize', scene);
         } else {
             this[properties.scene] = null;
         }
@@ -431,7 +434,11 @@ export default class OpenGLScreen extends HTMLDivElement {
         if (sceneContext == null || sceneContext.error != null) {
             return this[methods.clear]();
         }
-        if (this[properties.forceResize] || this.canvas.width !== this.canvas.clientWidth || this.canvas.height !== this.canvas.clientHeight) {
+        const [desiredWidth, desiredHeight] = scene.getDesiredSize(this);
+        if (this[properties.forceResize] || this.canvas.width !== desiredWidth || this.canvas.height !== desiredHeight) {
+            this[properties.forceResize] = false;
+            this.canvas.width = desiredWidth;
+            this.canvas.height = desiredHeight;
             if (!this[methods.callContext]('onResize', scene)) {
                 return this[methods.clear]();
             }
@@ -447,18 +454,8 @@ export default class OpenGLScreen extends HTMLDivElement {
 
     [methods.resize]() {
         const gl = this[properties.gl];
-        const canvas = gl.canvas;
-        if (this.clientWidth !== canvas.width || this.clientHeight !== canvas.height) {
-            canvas.width = this.clientWidth;
-            canvas.height = this.clientHeight;
-            if (this[properties.scene] != null) {
-                this[methods.callContext]('onResize', this[properties.scene]);
-            } else {
-                gl.viewport(0, 0, canvas.width, canvas.height);
-                gl.scissor(0, 0, canvas.width, canvas.height);
-            }
-            this.update();
-        }
+        this[properties.forceResize] = true;
+        this.update();
     }
 }
 

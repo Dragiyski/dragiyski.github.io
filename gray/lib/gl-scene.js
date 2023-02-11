@@ -72,4 +72,8 @@ export default class OpenGLScene {
      */
     onPaint(gl, storage) {
     }
+
+    getDesiredSize(screen) {
+        return [screen.canvas.clientWidth, screen.canvas.clientHeight];
+    }
 }

@@ -144,7 +144,8 @@ export default function createProgram(gl, vertexSource, fragmentSource, options)
                 });
                 const location = gl.getUniformLocation(program, info.name);
                 if (location == null) {
-                    throw new Error(`Runtime error: failed to determine the location of program uniform [${info.name}]`);
+                    // throw new Error(`Runtime error: failed to determine the location of program uniform [${info.name}]`);
+                    continue;
                 }
                 const typeName = Object.keys(uniformTypeInfo).find(name => name in gl && gl[name] === info.type);
                 if (typeName == null) {
