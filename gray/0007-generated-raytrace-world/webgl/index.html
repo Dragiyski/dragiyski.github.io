@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Scene 7: Generated combined raytrace</title>
+    <script type="module" src="main.js"></script>
+    <style type="text/css">
+        body {
+            margin: 0;
+            padding: 0;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #fff;
+        }
+
+        #app {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            flex-flow: row nowrap;
+            align-items: stretch;
+            justify-content: stretch;
+            box-sizing: border-box;
+        }
+
+        #display {
+            flex: 1 1 auto;
+            position: relative;
+            box-sizing: border-box;
+            display: flex;
+        }
+
+        #screen {
+            flex: 1 1 auto;
+            display: flex;
+            flex-flow: row nowrap;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #controls {
+            position: absolute;
+            top: 1em;
+            right: 1em;
+        }
+
+        #frame-info {
+            position: absolute;
+            top: 1em;
+            left: 1em;
+        }
+
+        .debug-info {
+            border-radius: 1em;
+            background-color: rgba(0, 0, 0, 0.75);
+            color: #fff;
+            text-shadow: -1px -1px 0 #000, -1px 1px 0 #000, 1px -1px 0 #000, 1px 1px 0 #000;
+            font: bold 12pt monospace;
+            padding: 1em;
+        }
+
+        #options {
+            min-width: 256px;
+            max-width: 100%;
+            background-color: #000;
+            color: #fff;
+            font: bold 12pt monospace;
+            padding: 1em;
+            box-sizing: border-box;
+            overflow: auto;
+        }
+
+        .form-hrow {
+            display: flex;
+            flex-flow: row nowrap;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .form-hrow .option-field {
+            margin: 0 0.4em;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="app">
+        <div id="display">
+            <div id="screen" is="opengl-screen"></div>
+            <div id="frame-info" class="debug-info"></div>
+        </div>
+    </div>
+</body>
+
+</html>
