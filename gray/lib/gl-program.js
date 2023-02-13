@@ -33,19 +33,17 @@ export default function createProgram(gl, vertexSource, fragmentSource, options)
         if (!gl.getShaderParameter(vertexShader, gl.COMPILE_STATUS)) {
             throw new ShaderCompileError(gl.getShaderInfoLog(vertexShader), { context: gl, shaderSource: vertexSource, shaderType: 'VERTEX_SHADER' });
         }
-        if (fragmentSource != null) {
-            fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
-            if (typeof options.beforeSource === 'function') {
-                fragmentSource = (0, options.beforeSource)(fragmentSource);
-            }
-            if (typeof options.beforeFragmentSource === 'function') {
-                fragmentSource = (0, options.beforeFragmentSource)(fragmentSource);
-            }
-            gl.shaderSource(fragmentShader, fragmentSource);
-            gl.compileShader(fragmentShader);
-            if (!gl.getShaderParameter(fragmentShader, gl.COMPILE_STATUS)) {
-                throw new ShaderCompileError(gl.getShaderInfoLog(fragmentShader), { context: gl, shaderSource: fragmentSource, shaderType: 'FRAGMENT_SHADER' });
-            }
+        fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
+        if (typeof options.beforeSource === 'function') {
+            fragmentSource = (0, options.beforeSource)(fragmentSource);
+        }
+        if (typeof options.beforeFragmentSource === 'function') {
+            fragmentSource = (0, options.beforeFragmentSource)(fragmentSource);
+        }
+        gl.shaderSource(fragmentShader, fragmentSource);
+        gl.compileShader(fragmentShader);
+        if (!gl.getShaderParameter(fragmentShader, gl.COMPILE_STATUS)) {
+            throw new ShaderCompileError(gl.getShaderInfoLog(fragmentShader), { context: gl, shaderSource: fragmentSource, shaderType: 'FRAGMENT_SHADER' });
         }
         program = gl.createProgram();
         gl.attachShader(program, vertexShader);
@@ -67,6 +65,9 @@ export default function createProgram(gl, vertexSource, fragmentSource, options)
                 value: Object.create(null)
             },
             uniform: {
+                value: Object.create(null)
+            },
+            uniform_block: {
                 value: Object.create(null)
             }
         });
@@ -172,6 +173,19 @@ export default function createProgram(gl, vertexSource, fragmentSource, options)
                 }
                 Object.defineProperty(program.uniform, info.name, {
                     value: accessor
+                });
+            }
+        }
+        {
+            const length = gl.getProgramParameter(program, gl.ACTIVE_UNIFORM_BLOCKS);
+            for (let i = 0; i < length; ++i) {
+                const info = Object.create(null);
+                const name = info.name = gl.getActiveUniformBlockName(program, i);
+                info.binding = gl.getActiveUniformBlockParameter(program, i, gl.UNIFORM_BLOCK_BINDING);
+                info.size = gl.getActiveUniformBlockParameter(program, i, gl.UNIFORM_BLOCK_DATA_SIZE);
+                info.count = gl.getActiveUniformBlockParameter(program, i, gl.UNIFORM_BLOCK_ACTIVE_UNIFORMS);
+                Object.defineProperty(program.uniform_block, name, {
+                    value: info
                 });
             }
         }

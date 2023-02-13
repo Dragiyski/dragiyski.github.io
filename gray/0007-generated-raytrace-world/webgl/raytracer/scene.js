@@ -6,6 +6,19 @@ import { getSize, getAlignment } from './uniform.js';
 
 export const indent = '    ';
 
+const properties = {
+    camera: Symbol('camera'),
+    uniform: Symbol('uniform'),
+    objects: Symbol('objects'),
+    fragment_code: Symbol('fragment_code'),
+    uniform_need_update: Symbol('uniform_need_update')
+};
+
+const methods = {
+    compile: Symbol('compile'),
+    update_uniforms: Symbol('update_uniforms')
+};
+
 const compute_vertex_normal_source = `#version 300 es
 
 precision highp float;
@@ -26,14 +39,22 @@ export class Scene extends OpenGLScene {
         camera = new PerspectiveCamera()
     } = {}) {
         super();
-        this.camera = camera;
+        this[properties.camera] = camera;
+        this[properties.uniform] = Object.assign(Object.create(null), {
+            size: 0,
+            list: [],
+            object_map: new WeakMap()
+        });
+        this[properties.objects] = [camera];
+        this[properties.fragment_code] = this[methods.compile]();
+    }
 
-        this.uniform_buffer_offset = 0;
-        this.uniform_buffer_variables = [];
-        this.uniform_buffer_variable_by_object = new WeakMap();
-        this.state_compiled = new WeakSet();
-        this.objects = [null, this.camera];
-        this.fragment_code = this.compile();
+    get camera() {
+        return this[properties.camera];
+    }
+
+    get code() {
+        return this[properties.fragment_code];
     }
 
     async loadResources() {
@@ -52,6 +73,9 @@ export class Scene extends OpenGLScene {
         if ((context.EXT_disjoint_timer_query_webgl2 = gl.getExtension('EXT_disjoint_timer_query_webgl2')) != null) {
             context.frame_time_query = gl.createQuery();
         }
+
+        context.objectBuffer = gl.createBuffer();
+        this.updateUniforms(gl, context);
 
         {
             const compute_vertex_data = Float32Array.from([
@@ -82,10 +106,30 @@ export class Scene extends OpenGLScene {
             gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
         }
 
-        context.program = createProgram(gl, compute_vertex_normal_source, this.fragment_code);
-        context.objectBuffer = gl.createBuffer();
+        context.program = createProgram(gl, compute_vertex_normal_source, this[properties.fragment_code]);
 
         gl.clearColor(0.2, 0.5, 0.7, 1.0);
+    }
+
+    invalidate() {
+        this[properties.uniform_need_update] = true;
+    }
+
+    updateUniforms(gl, context) {
+        const objectBuffer = new ArrayBuffer(this[properties.uniform].size);
+        for (let i = 0; i < this[properties.objects].length; ++i) {
+            const object = this[properties.objects][i];
+            if (object == null) {
+                continue;
+            }
+            const offset_map = this[properties.uniform].object_map.get(object).offset_map;
+            object.writeUniformData(objectBuffer, offset_map);
+        }
+
+        gl.bindBuffer(gl.UNIFORM_BUFFER, context.objectBuffer);
+        gl.bufferData(gl.UNIFORM_BUFFER, objectBuffer, gl.STATIC_DRAW);
+        gl.bindBuffer(gl.UNIFORM_BUFFER, null);
+        this[properties.uniform_need_update] = false;
     }
 
     onResize(gl, context) {
@@ -100,21 +144,9 @@ export class Scene extends OpenGLScene {
     onPaint(gl, context) {
         super.onPaint(gl, context);
 
-        const objectBuffer = new ArrayBuffer(this.uniform_buffer_offset);
-        for (let i = 1; i < this.objects.length; ++i) {
-            const object = this.objects[i];
-            if (object == null) {
-                continue;
-            }
-            const offset_map = this.uniform_buffer_variable_by_object.get(object).offset_map;
-            object.writeUniformData(objectBuffer, offset_map);
+        if (this[properties.uniform_need_update]) {
+            this.updateUniforms(gl, context);
         }
-
-        gl.bindBuffer(gl.UNIFORM_BUFFER, context.objectBuffer);
-        gl.bufferData(gl.UNIFORM_BUFFER, objectBuffer, gl.STATIC_DRAW);
-        gl.bindBuffer(gl.UNIFORM_BUFFER, null);
-
-        gl.bindBufferBase(gl.UNIFORM_BUFFER, gl.getUniformBlockIndex(context.program, 'uniform_data_1'), context.objectBuffer);
 
         if (context.EXT_disjoint_timer_query_webgl2 != null && !context.frame_time_query.expect_result) {
             if (context.frame_time_query.interval_id != null) {
@@ -129,12 +161,12 @@ export class Scene extends OpenGLScene {
         gl.clear(gl.COLOR_BUFFER_BIT);
 
         gl.useProgram(context.program);
+        gl.bindBufferBase(gl.UNIFORM_BUFFER, context.program.uniform_block.uniform_data_1.binding, context.objectBuffer);
         gl.bindVertexArray(context.compute_vertex_array);
         gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_BYTE, 0);
         gl.bindVertexArray(null);
+        gl.bindBufferBase(gl.UNIFORM_BUFFER, context.program.uniform_block.uniform_data_1.binding, null);
         gl.useProgram(null);
-
-        gl.bindBufferBase(gl.UNIFORM_BUFFER, gl.getUniformBlockIndex(context.program, 'uniform_data_1'), null);
 
         if (context.EXT_disjoint_timer_query_webgl2 != null && context.frame_time_query.in_this_frame) {
             gl.endQuery(context.EXT_disjoint_timer_query_webgl2.TIME_ELAPSED_EXT);
@@ -143,7 +175,25 @@ export class Scene extends OpenGLScene {
         }
     }
 
-    compile() {
+    [methods.compile]() {
+        const uniforms = this[properties.uniform];
+        const uniform_code = [];
+        for (let index = 0; index < this[properties.objects].length; ++index) {
+            const object = this[properties.objects][index];
+            if (object == null) {
+                continue;
+            }
+            const uniform_storage = Object.assign(Object.create(null), {
+                qualified_map: Object.create(null),
+                description: Object.create(null),
+                offset_map: Object.create(null)
+            });
+            uniforms.object_map.set(object, uniform_storage);
+            const compileUniformBlock = object.compileUniformBlock;
+            if (typeof compileUniformBlock === 'function') {
+                compileUniformBlock.call(object, registerUniform.bind(this, index));
+            }
+        }
         const code = [
             `#version 300 es`,
             '',
@@ -158,26 +208,9 @@ export class Scene extends OpenGLScene {
             `out vec4 color;`,
             ''
         ];
-        if (this.objects.length > 1) {
+        if (uniform_code.length > 0) {
             code.push('layout(std140) uniform uniform_data_1 {');
-            for (let index = 1; index < this.objects.length; ++index) {
-                const object = this.objects[index];
-                if (object == null) {
-                    continue;
-                }
-                this.uniform_buffer_variable_by_object.set(this.objects[index], Object.assign(Object.create(null), {
-                    qualified_map: Object.create(null),
-                    description: Object.create(null),
-                    offset_map: Object.create(null)
-                }));
-                object.compileUniformBlock(registerUniform.bind(this, index));
-                const storage = this.uniform_buffer_variable_by_object.get(object);
-                for (const name in storage.description) {
-                    const type = storage.description[name].type;
-                    const qualified_name = storage.description[name].qualified_name;
-                    code.push(`${indent}${type} ${qualified_name};`);
-                }
-            }
+            code.push(...uniform_code);
             code.push('};', '');
         }
 
@@ -186,9 +219,9 @@ export class Scene extends OpenGLScene {
         code.push(`${indent}vec3 screen_ray_direction;`);
 
         {
-            const camera = this.camera;
-            const uniforms = this.uniform_buffer_variable_by_object.get(camera).qualified_map;
-            code.push(...camera.compile(uniforms, {
+            const camera = this[properties.camera];
+            const qualified_map = uniforms.object_map.get(camera).qualified_map;
+            code.push(...camera.compile(qualified_map, {
                 position: 'position',
                 ray_origin: 'screen_ray_origin',
                 ray_direction: 'screen_ray_direction'
@@ -202,14 +235,15 @@ export class Scene extends OpenGLScene {
         return code.join('\n');
 
         function registerUniform(index, type, name) {
+            const uniforms = this[properties.uniform];
             const size = getSize(type);
             const alignment = getAlignment(type);
-            const offset_alignment = this.uniform_buffer_offset % alignment;
+            const offset_alignment = uniforms.size % alignment;
             if (offset_alignment !== 0) {
-                this.uniform_buffer_offset += alignment - offset_alignment;
+                uniforms.size += alignment - offset_alignment;
             }
             const qualified_name = `object_${index}_${name}`;
-            const global_id = this.uniform_buffer_variables.length;
+            const global_id = uniforms.list.length;
             const description = {
                 global_id,
                 object_id: index,
@@ -218,14 +252,15 @@ export class Scene extends OpenGLScene {
                 size,
                 alignment,
                 type,
-                offset: this.uniform_buffer_offset
+                offset: uniforms.size
             };
-            this.uniform_buffer_variables.push(description);
-            const storage = this.uniform_buffer_variable_by_object.get(this.objects[index]);
-            storage.qualified_map[name] = qualified_name;
-            storage.description[name] = description;
-            storage.offset_map[name] = description.offset;
-            this.uniform_buffer_offset += size;
+            uniforms.size += size;
+            uniforms.list.push(description);
+            const object_map = uniforms.object_map.get(this[properties.objects][index]);
+            object_map.qualified_map[name] = qualified_name;
+            object_map.description[name] = description;
+            object_map.offset_map[name] = description.offset;
+            uniform_code.push(`${indent}${description.type} ${qualified_name};`);
         }
     }
 

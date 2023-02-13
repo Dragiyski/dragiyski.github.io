@@ -115,6 +115,7 @@ function onMouseMove(event) {
     control_state.pitch = Math.max(-Math.PI * 0.5, Math.min(Math.PI * 0.5, control_state.pitch - pitchChange));
     const camera_rotation_matrix = mul_matrix_matrix(mat4_rotation_z(-control_state.yaw), mat4_rotation_x(control_state.pitch));
     scene.camera.direction = normalize_vector(mul_matrix_vector(camera_rotation_matrix, [...control_state.forward, 1]).slice(0, 3));
+    scene.invalidate();
     // console.log([control_state.yaw, control_state.pitch]);
 }
 
