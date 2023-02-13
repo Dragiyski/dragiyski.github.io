@@ -1,20 +1,8 @@
 import '../../lib/gl-screen.js';
-import { mat4_rotation_x, mat4_rotation_z, mul_matrix_matrix, mul_matrix_vector, normalize_vector } from '../../lib/math.js';
-import { Scene } from './raytracer/scene.js';
+import { add_vector_vector, mul_number_vector, neg_vector } from '../../lib/math.js';
+import { Scene } from './scene.js';
 
 export let isLoaded = false;
-
-const control_options = {
-    mouse_speed_x: 0.75,
-    mouse_speed_y: 0.75,
-    move_speed: 12
-};
-
-const control_state = {
-    yaw: 0.0,
-    pitch: 0.0,
-    forward: [0, 1, 0]
-};
 
 async function main() {
     isLoaded = true;
@@ -22,14 +10,14 @@ async function main() {
     await scene.loadResources();
     const screen = document.getElementById('screen');
     screen.scene = scene;
-    // window.addEventListener('keydown', onKeyDown);
-    // window.addEventListener('keyup', onKeyUp);
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keyup', onKeyUp);
     screen.canvas.addEventListener('click', onScreenClick);
     document.addEventListener('mousemove', onMouseMove);
     document.addEventListener('pointerlockchange', onLockPointerChange);
-    // document.getElementById('set-max-width-height').addEventListener('click', setMaxWidthHeight);
-    // document.getElementById('update').addEventListener('click', manualUpdate);
-    // document.getElementById('state').textContent = 'paused';
+    document.getElementById('set-max-width-height').addEventListener('click', setMaxWidthHeight);
+    document.getElementById('update').addEventListener('click', manualUpdate);
+    document.getElementById('state').textContent = 'paused';
 }
 
 function manualUpdate(event) {
@@ -91,9 +79,29 @@ function onLockPointerChange(event) {
     const screen = document.getElementById('screen');
     if (document.pointerLockElement === screen) {
         screen.passive = false;
+        const max_width = document.getElementById('set-max-width').valueAsNumber;
+        const max_height = document.getElementById('set-max-height').valueAsNumber;
+        screen.scene.max_width = max_width;
+        screen.scene.max_height = max_height;
+        for (const element of document.querySelectorAll('[name="antialias"]')) {
+            if (!element.checked) {
+                continue;
+            }
+            const value = parseInt(element.value);
+            if (!Number.isSafeInteger(value)) {
+                continue;
+            }
+            screen.scene.antialias = value;
+        }
+        screen.forceResize();
+        document.getElementById('state').textContent = 'running';
         // console.log('[pointer-lock]: on');
     } else {
         screen.passive = true;
+        if (screen.scene?.camera != null) {
+            screen.scene.camera.timestamp = null;
+        }
+        document.getElementById('state').textContent = 'paused';
         // console.log('[pointer-lock]: off');
     }
 }
@@ -109,13 +117,11 @@ function onMouseMove(event) {
         return;
     }
     const diagonal = Math.sqrt(canvas.clientWidth * canvas.clientWidth + canvas.clientHeight * canvas.clientHeight);
-    const yawChange = (event.movementX / diagonal) * control_options.mouse_speed_x * Math.PI * 2;
-    const pitchChange = (event.movementY / diagonal) * control_options.mouse_speed_y * Math.PI * 2;
-    control_state.yaw = (Math.PI * 2 + control_state.yaw + yawChange) % (Math.PI * 2);
-    control_state.pitch = Math.max(-Math.PI * 0.5, Math.min(Math.PI * 0.5, control_state.pitch - pitchChange));
-    const camera_rotation_matrix = mul_matrix_matrix(mat4_rotation_z(-control_state.yaw), mat4_rotation_x(control_state.pitch));
-    scene.camera.direction = normalize_vector(mul_matrix_vector(camera_rotation_matrix, [...control_state.forward, 1]).slice(0, 3));
-    // console.log([control_state.yaw, control_state.pitch]);
+    const yawChange = (event.movementX / diagonal) * scene.controls.mouse_speed_x * Math.PI * 2;
+    const pitchChange = (event.movementY / diagonal) * scene.controls.mouse_speed_y * Math.PI * 2;
+    scene.camera.yaw = (Math.PI * 2 + scene.camera.yaw + yawChange) % (Math.PI * 2);
+    scene.camera.pitch = Math.max(-Math.PI * 0.5, Math.min(Math.PI * 0.5, scene.camera.pitch - pitchChange));
+    // console.log([yawChange, pitchChange]);
 }
 
 /**

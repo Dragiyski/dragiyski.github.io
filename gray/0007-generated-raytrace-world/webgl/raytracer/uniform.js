@@ -1,10 +1,11 @@
+import createProgram from "../../../lib/gl-program.js";
+
 export const indent = '    ';
 
 const compute_vertex_normal_source = `#version 300 es
 
 precision highp float;
 precision highp int;
-precision highp uint;
 
 layout (location = 0) in vec2 position_in;
 
@@ -20,13 +21,15 @@ export default class Program {
     constructor() {
         this.id = 1;
         this.uniform_buffer_offset = 0;
-        this.uniform_buffer_variables = Object.create(null);
+        this.uniform_buffer_variables = [];
+        this.uniform_buffer_variables_by_name = Object.create(null);
         this.camera = null;
         this.shapes = new Set();
     }
 
     setCamera(camera) {
         this.camera = camera;
+        camera.register(this);
     }
 
     addShape(shape) {
@@ -46,20 +49,23 @@ export default class Program {
             ``,
             `precision highp float;`,
             `precision highp int;`,
-            `precision highp uint;`,
             ``,
             `const float positive_infinity = uintBitsToFloat(0x7F800000u);`,
             `const float negative_infinity = uintBitsToFloat(0xFF800000u);`,
             `const float not_a_number = uintBitsToFloat(0x7fc00000u);`,
+            ``,
+            `in vec2 position;`,
+            `out vec4 color;`,
             ``
         ];
-        if (Object.keys(this.uniform_buffer_variables).length > 0) {
+        if (this.uniform_buffer_variables.length > 0) {
             lines.push(`layout(std140) uniform ShapeData {`);
-            for (const name in this.uniform_buffer_variables) {
-                const type = this.uniform_buffer_variables[name].type;
+            for (const variable of this.uniform_buffer_variables) {
+                const name = variable.name;
+                const type = variable.type;
                 lines.push(`${indent}${type} ${name};`);
             }
-            lines.push('}', '');
+            lines.push('};', '');
         }
         lines.push(`void main() {`);
         lines.push(...this.camera.getCode({ position: 'position' }).map(line => `${indent}${line}`));
@@ -80,31 +86,41 @@ export default class Program {
                 ray_direction: this.camera.name_ray_direction
             }).map(line => `${indent}${line}`));
         }
+        lines.push(...[
+            `${indent}if (screen_state_id == 0u) {`,
+            `${indent}${indent}discard;`,
+            `${indent}${indent}return;`,
+            `${indent}}`,
+            `${indent}color = vec4(screen_state_normal, 1.0);`
+        ]);
         lines.push('}', '');
+        return lines;
+    }
+
+    build(gl) {
+        const fragment_code = this.getCode().join('\n');
+        return createProgram(gl, compute_vertex_normal_source, fragment_code);
     }
 
     registerUniform(type, name) {
-        if (name in this.uniform_buffer_variables) {
-            throw new Error(`Variable already registered: ${name}`);
-        }
         const size = getSize(type);
         const alignment = getAlignment(type);
         const offset_alignment = this.uniform_buffer_offset % alignment;
         if (offset_alignment !== 0) {
             this.uniform_buffer_offset += alignment - offset_alignment;
         }
-        this.uniform_buffer_variables[name] = {
+        this.uniform_buffer_variables.push({
             name,
             size,
             alignment,
             type,
             offset: this.uniform_buffer_offset
-        };
+        });
         this.uniform_buffer_offset += size;
     }
 }
 
-function getSize(type) {
+export function getSize(type) {
     if (['float', 'int', 'uint'].indexOf(type) >= 0) {
         return 4;
     }
@@ -130,7 +146,7 @@ function getSize(type) {
     throw new Error(`Unknown type: ${type}`);
 }
 
-function getAlignment(type) {
+export function getAlignment(type) {
     if (['float', 'int', 'uint'].indexOf(type) >= 0) {
         return 4;
     }

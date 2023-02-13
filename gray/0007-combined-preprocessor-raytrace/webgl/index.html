@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Scene 6: Combined raytrace (constant scene)</title>
+    <script type="module" src="main.js"></script>
+    <style type="text/css">
+        body {
+            margin: 0;
+            padding: 0;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #fff;
+        }
+
+        #app {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            flex-flow: row nowrap;
+            align-items: stretch;
+            justify-content: stretch;
+            box-sizing: border-box;
+        }
+
+        #display {
+            flex: 1 1 auto;
+            position: relative;
+            box-sizing: border-box;
+            display: flex;
+        }
+
+        #screen {
+            flex: 1 1 auto;
+            display: flex;
+            flex-flow: row nowrap;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #controls {
+            position: absolute;
+            top: 1em;
+            right: 1em;
+        }
+
+        #frame-info {
+            position: absolute;
+            top: 1em;
+            left: 1em;
+        }
+
+        .debug-info {
+            border-radius: 1em;
+            background-color: rgba(0, 0, 0, 0.75);
+            color: #fff;
+            text-shadow: -1px -1px 0 #000, -1px 1px 0 #000, 1px -1px 0 #000, 1px 1px 0 #000;
+            font: bold 12pt monospace;
+            padding: 1em;
+        }
+
+        #options {
+            min-width: 256px;
+            max-width: 100%;
+            background-color: #000;
+            color: #fff;
+            font: bold 12pt monospace;
+            padding: 1em;
+            box-sizing: border-box;
+            overflow: auto;
+        }
+
+        .form-hrow {
+            display: flex;
+            flex-flow: row nowrap;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .form-hrow .option-field {
+            margin: 0 0.4em;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="app">
+        <div id="display">
+            <div id="screen" is="opengl-screen"></div>
+            <div id="frame-info" class="debug-info"></div>
+        </div>
+        <div id="options">
+            <p class="form-hrow">
+                <label>Resolution:</label>
+                <input type="number" min="1" size="3" value="400" class="option-field number" id="set-max-width" />
+                <span>x</span>
+                <input type="number" min="1" size="3" value="300" class="option-field number" id="set-max-height" />
+                <button type="button" id="set-max-width-height">Set to max</button>
+            </p>
+            <p>
+                <span>Max resolution:</span>
+                <span id="max-width">0</span>
+                <span>x</span>
+                <span id="max-height">0</span>
+            </p>
+            <p>
+                <span>Current resolution:</span>
+                <span id="current-width">0</span>
+                <span>x</span>
+                <span id="current-height">0</span>
+            </p>
+            <hr/>
+            <p class="form-row">
+                <label>Antialias:</label>
+                <span id="current-antialias"></span>
+            </p>
+            <p>
+                <div><input type="radio" name="antialias" value="1" checked="checked"/>1x</div>
+                <div><input type="radio" name="antialias" value="2"/>2x</div>
+                <div><input type="radio" name="antialias" value="3"/>3x</div>
+                <div><input type="radio" name="antialias" value="4"/>4x</div>
+            </p>
+            <hr/>
+            <p>
+                <span>State:</span>
+                <span id="state"></span>
+            </p>
+            <hr/>
+            <p>
+                <button id="update">Manual update</button>
+            </p>
+            <hr/>
+            <p>
+                <div>Click on screen to resume (lock cursor).</div>
+                <div>Escape = pause (unlock cursor)</div>
+                <div>Mouse = rotate</div>
+                <div>W = forward</div>
+                <div>S = backward</div>
+                <div>A = left</div>
+                <div>D = right</div>
+                <div>Q = up</div>
+                <div>E = down</div>
+            </p>
+        </div>
+    </div>
+</body>
+
+</html>
