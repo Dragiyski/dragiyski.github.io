@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Scene 6: Combined raytrace (constant scene)</title>
+    <title>Scene 7: Generated combined raytrace</title>
     <script type="module" src="main.js"></script>
     <style type="text/css">
         body {
@@ -96,59 +96,6 @@
         <div id="display">
             <div id="screen" is="opengl-screen"></div>
             <div id="frame-info" class="debug-info"></div>
-        </div>
-        <div id="options">
-            <p class="form-hrow">
-                <label>Resolution:</label>
-                <input type="number" min="1" size="3" value="400" class="option-field number" id="set-max-width" />
-                <span>x</span>
-                <input type="number" min="1" size="3" value="300" class="option-field number" id="set-max-height" />
-                <button type="button" id="set-max-width-height">Set to max</button>
-            </p>
-            <p>
-                <span>Max resolution:</span>
-                <span id="max-width">0</span>
-                <span>x</span>
-                <span id="max-height">0</span>
-            </p>
-            <p>
-                <span>Current resolution:</span>
-                <span id="current-width">0</span>
-                <span>x</span>
-                <span id="current-height">0</span>
-            </p>
-            <hr/>
-            <p class="form-row">
-                <label>Antialias:</label>
-                <span id="current-antialias"></span>
-            </p>
-            <p>
-                <div><input type="radio" name="antialias" value="1" checked="checked"/>1x</div>
-                <div><input type="radio" name="antialias" value="2"/>2x</div>
-                <div><input type="radio" name="antialias" value="3"/>3x</div>
-                <div><input type="radio" name="antialias" value="4"/>4x</div>
-            </p>
-            <hr/>
-            <p>
-                <span>State:</span>
-                <span id="state"></span>
-            </p>
-            <hr/>
-            <p>
-                <button id="update">Manual update</button>
-            </p>
-            <hr/>
-            <p>
-                <div>Click on screen to resume (lock cursor).</div>
-                <div>Escape = pause (unlock cursor)</div>
-                <div>Mouse = rotate</div>
-                <div>W = forward</div>
-                <div>S = backward</div>
-                <div>A = left</div>
-                <div>D = right</div>
-                <div>Q = up</div>
-                <div>E = down</div>
-            </p>
         </div>
     </div>
 </body>

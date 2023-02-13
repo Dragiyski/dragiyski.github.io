@@ -350,8 +350,7 @@ export class Scene extends OpenGLScene {
                 state_depth: 'light_raytrace_depth',
                 ray_origin: 'screen_raytrace_hit_point',
                 ray_direction: 'light_direction',
-                ray_limit: 'light_distance',
-                skip_id: 'screen_raytrace_id'
+                ray_limit: 'light_distance'
             }).map(line => `${indent}${line}`));
         }
 

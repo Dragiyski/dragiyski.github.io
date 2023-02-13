@@ -117,15 +117,15 @@ export default class Box {
         direction_y_square,
         normal,
         dot_normal_origin,
-        dot_normal_ray_direction,
-        skip_id
-    } = {}) {
+        dot_normal_ray_direction
+    } = {}, options) {
+        options = { ...options };
         const code = [
             'do {'
         ];
-        if (skip_id != null) {
+        if (options.skip_by_id) {
             code.push(...[
-                `${indent}if (${skip_id} == ${id}u) {`,
+                `${indent}if (${state_id} == ${id}) {`,
                 `${indent}${indent}break;`,
                 `${indent}}`
             ]);
@@ -165,15 +165,14 @@ export default class Box {
 
     compile(baseId, uniform, {
         state_id = 'state_id',
-        state_depth = 'raytrace_depth',
+        state_depth = null,
         state_normal = null,
         state_hit_point = null,
         state_uv = null,
         ray_origin = 'ray_origin',
         ray_direction = 'ray_direction',
-        ray_limit = null,
-        skip_id
-    } = {}) {
+        ray_limit = null
+    } = {}, options) {
         const code = [];
         code.push('do {');
         for (let i = 0; i < 3; ++i) {
@@ -191,7 +190,6 @@ export default class Box {
                     ray_origin,
                     ray_direction,
                     ray_limit,
-                    skip_id,
                     origin: p ? uniform[`add_origin_direction_${i}`] : uniform.origin,
                     dot_normal_origin: p ? uniform[`dot_normal_${i}_add_origin_direction_${i}`] : uniform[`dot_normal_${i}_origin`],
                     normal: uniform[`normal_${i}`],
@@ -200,7 +198,7 @@ export default class Box {
                     direction_y: uniform[`direction_${dir_index[1]}`],
                     direction_y_square: uniform[`direction_${dir_index[1]}_square`],
                     dot_normal_ray_direction: `dot_normal_${i}_ray_direction`
-                }).map(line => `${indent}${line}`));
+                }, options).map(line => `${indent}${line}`));
             }
         }
         code.push('} while(false);');

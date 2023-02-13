@@ -75,7 +75,7 @@ RaytraceState raytrace_quad(const RaytraceState state, const Ray ray, vec3 origi
     return RaytraceState(id, depth, hit_point, ndf * normal, vec2(x, y), vec3(1.0, 1.0, 1.0), normalize(direction1), normalize(direction2));
 }
 
-RaytraceState raytrace_quad(RaytraceState state, const Ray ray, vec3 origin, vec3 direction1, vec3 direction2, vec3 direction3, int id) {
+RaytraceState raytrace_box(RaytraceState state, const Ray ray, vec3 origin, vec3 direction1, vec3 direction2, vec3 direction3, int id) {
     state = raytrace_quad(state, ray, origin, direction1, direction2, id);
     state = raytrace_quad(state, ray, origin, direction1, direction3, id);
     state = raytrace_quad(state, ray, origin, direction2, direction3, id);
