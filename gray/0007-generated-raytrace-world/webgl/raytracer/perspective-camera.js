@@ -1,3 +1,4 @@
+import { assert, assertVectorLength } from '../../../lib/math-assert.js';
 import { add_vector_vector, cross_vector_vector, mul_number_vector, neg_vector, normalize_vector } from '../../../lib/math.js';
 import SystemDataView from '../../../lib/system-data-view.js';
 import { indent } from './scene.js';
@@ -5,10 +6,7 @@ import { indent } from './scene.js';
 export const properties = {
     id: Symbol('id'),
     compute: Symbol('compute'),
-    state: Symbol('state'),
-    center: Symbol('center'),
-    right: Symbol('right'),
-    up: Symbol('up')
+    state: Symbol('state')
 };
 
 export const methods = {
@@ -20,27 +18,28 @@ const defaultOptions = { origin: [0, 0, 0], direction: [0, 1, 0], near_frame: 1.
 export default class PerspectiveCamera {
     constructor(options = {}) {
         options = { ...defaultOptions, ...options };
+        assertVectorLength(options.origin, 3);
+        assertVectorLength(options.direction, 3);
+        assert(isFinite(options.near_frame));
+        assert(isFinite(options.field_of_view));
+        assertVectorLength(options.world_up, 3);
+        assert(isFinite(options.aspect_ratio) && options.aspect_ratio >= 0.0);
         this[properties.compute] = true;
         const names = Object.keys(options);
         const state = this[properties.state] = Object.create(null);
         for (const name of names) {
             state[name] = options[name];
-            Object.defineProperty(this, name, {
-                configurable: true,
-                get: () => this[properties.state][name],
-                set: value => {
-                    this[properties.state][name] = value;
-                    this[properties.compute] = true;
-                }
-            });
         }
     }
 
-    compileUniformBlock(register) {
-        register('vec3', 'origin');
-        register('vec3', 'center');
-        register('vec3', 'right');
-        register('vec3', 'up');
+    compileUniform() {
+        return [
+            `uniform vec3 camera_origin;`,
+            `uniform vec3 screen_center;`,
+            `uniform vec3 screen_right;`,
+            `uniform vec3 screen_up;`,
+            ''
+        ];
     }
 
     [methods.compute]() {
@@ -58,34 +57,79 @@ export default class PerspectiveCamera {
         this[properties.compute] = false;
     }
 
-    compile(uniform, { position = 'position', ray_origin = 'ray_origin', ray_direction = 'ray_direction' }) {
+    compile({ position = 'position', ray_origin = 'ray_origin', ray_direction = 'ray_direction' }) {
         return [
             '{',
             `${indent}vec2 screen_position = ${position}.xy * 2.0 - 1.0;`,
-            `${indent}vec3 screen_point = ${uniform.center} + screen_position.x * ${uniform.right} + screen_position.y * ${uniform.up};`,
-            `${indent}${ray_direction} = normalize(screen_point - ${uniform.origin});`,
-            `${indent}${ray_origin} = ${uniform.origin};`,
+            `${indent}vec3 screen_point = screen_center + screen_position.x * screen_right + screen_position.y * screen_up;`,
+            `${indent}${ray_direction} = normalize(screen_point - camera_origin);`,
+            `${indent}${ray_origin} = camera_origin;`,
             '}'
         ];
     }
 
-    writeUniformData(buffer, offset) {
+    get origin() {
+        return this[properties.state].origin;
+    }
+
+    set origin(value) {
+        assertVectorLength(value, 3);
+        this[properties.state].origin = [...value];
+        this[properties.compute] = true;
+    }
+
+    get direction() {
+        return this[properties.state].direction;
+    }
+
+    set direction(value) {
+        assertVectorLength(value, 3);
+        this[properties.state].direction = normalize_vector(value);
+        this[properties.compute] = true;
+    }
+
+    get aspect_ratio() {
+        return this[properties.state].aspect_ratio;
+    }
+
+    set aspect_ratio(value) {
+        assert(isFinite(value) && value > 0);
+        this[properties.state].aspect_ratio = value;
+        this[properties.compute] = true;
+    }
+
+    get forward() {
+        return normalize_vector(this[properties.state].direction);
+    }
+
+    get backward() {
+        return neg_vector(normalize_vector(this[properties.state].direction));
+    }
+
+    get right() {
+        return normalize_vector(this[properties.state].right);
+    }
+
+    get left() {
+        return neg_vector(normalize_vector(this[properties.state].right));
+    }
+
+    get up() {
+        return normalize_vector(this[properties.state].up);
+    }
+
+    get down() {
+        return neg_vector(normalize_vector(this[properties.state].up));
+    }
+
+    writeUniform(gl, program) {
         if (this[properties.compute]) {
             this[methods.compute]();
         }
         const state = this[properties.state];
-        const view = new SystemDataView(buffer);
-        for (let i = 0; i < 3; ++i) {
-            view.setFloat32(offset.origin + i * 4, state.origin[i]);
-        }
-        for (let i = 0; i < 3; ++i) {
-            view.setFloat32(offset.center + i * 4, state.center[i]);
-        }
-        for (let i = 0; i < 3; ++i) {
-            view.setFloat32(offset.right + i * 4, state.right[i]);
-        }
-        for (let i = 0; i < 3; ++i) {
-            view.setFloat32(offset.up + i * 4, state.up[i]);
-        }
+        program.uniform.camera_origin.setArray(state.origin);
+        program.uniform.screen_center.setArray(state.center);
+        program.uniform.screen_right.setArray(state.right);
+        program.uniform.screen_up.setArray(state.up);
     }
 };
