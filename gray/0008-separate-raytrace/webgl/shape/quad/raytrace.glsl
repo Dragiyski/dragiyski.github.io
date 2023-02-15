@@ -3,10 +3,14 @@
 precision highp float;
 precision highp int;
 
+const float positive_infinity = uintBitsToFloat(0x7F800000u);
+const float negative_infinity = uintBitsToFloat(0xFF800000u);
+const float not_a_number = uintBitsToFloat(0x7fc00000u);
+
 in vec2 position;
 layout(location=0) out vec4 normal_depth;
 layout(location=1) out vec4 hit_point;
-layout(location=2) out uint id;
+// layout(location=2) out uint id;
 
 uniform vec3 ray_origin;
 uniform sampler2D ray_direction_texture;
@@ -18,24 +22,23 @@ uniform vec3 normal;
 uniform float dot_normal_origin;
 
 void main() {
-    id = object_id;
     vec3 ray_direction = texture(ray_direction_texture, position).xyz;
     float dot_normal_ray_direction = dot(normal, ray_direction);
-    normal_depth.xyz = normal;
     float raytrace_depth = (dot_normal_origin - dot(normal, ray_origin)) / dot_normal_ray_direction;
-    normal_depth.w = raytrace_depth;
     vec3 raytrace_hit_point = ray_origin + raytrace_depth * ray_direction;
-    hit_point.xyz = raytrace_hit_point;
     vec3 hit_point_origin = raytrace_hit_point - origin;
     float x = dot(hit_point_origin, direction[0]) / direction_square[0];
     if (x < 0.0 || x > 1.0) {
-        gl_FragDepth = -1.0;
+        discard;
         return;
     }
     float y = dot(hit_point_origin, direction[1]) / direction_square[1];
     if (y < 0.0 || y > 1.0) {
-        gl_FragDepth = -1.0;
+        discard;
         return;
     }
-    gl_FragDepth = 1.0 - 1.0 / (1.0 + raytrace_depth);
+    normal_depth.xyz = normal;
+    normal_depth.w = raytrace_depth;
+    hit_point.xyz = raytrace_hit_point;
+    // id = object_id;
 }

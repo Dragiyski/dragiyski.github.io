@@ -27,7 +27,8 @@ const script_url = import.meta.url;
 export const shader_source = {
     compute_normal: 'shader/compute-normal.glsl',
     compute_center: 'shader/compute-center.glsl',
-    camera: 'shader/camera.glsl'
+    camera: 'shader/camera.glsl',
+    preview: 'shader/preview.glsl'
 };
 
 const methods = {
@@ -137,7 +138,6 @@ export class Scene extends OpenGLScene {
         gl.disable(gl.DITHER);
         gl.disable(gl.STENCIL_TEST);
         gl.disable(gl.SCISSOR_TEST);
-        gl.enable(gl.DEPTH_TEST);
         gl.disable(gl.CULL_FACE);
 
         gl.clearColor(0.2, 0.5, 0.7, 1.0);
