@@ -62,133 +62,12 @@ export default function createProgram(gl, vertexSource, fragmentSource, options)
 
         Object.defineProperties(program, {
             attribute: {
-                value: Object.create(null)
+                value: programAttribParse(gl, program)
             },
             uniform: {
-                value: Object.create(null)
-            },
-            uniform_block: {
-                value: Object.create(null)
+                value: programUniformParse(gl, program)
             }
         });
-        {
-            const length = gl.getProgramParameter(program, gl.ACTIVE_ATTRIBUTES);
-            for (let i = 0; i < length; ++i) {
-                const info = gl.getActiveAttrib(program, i);
-                const accessor = Object.create(null, {
-                    size: {
-                        value: info.size
-                    },
-                    type: {
-                        value: info.type
-                    },
-                    index: {
-                        value: i
-                    }
-                });
-                const location = gl.getAttribLocation(program, info.name);
-                if (location == null) {
-                    throw new Error(`Runtime error: failed to determine the location of program attribute [${info.name}]`);
-                }
-                const typeName = Object.keys(attribTypeInfo).find(name => name in gl && gl[name] === info.type);
-                if (typeName == null) {
-                    throw new Error(`Runtime error: failed to determine the type of program attribute [${info.name}]: unknown type ${info.type}`);
-                }
-                const typeInfo = attribTypeInfo[typeName];
-                Object.defineProperties(accessor, {
-                    location: {
-                        value: location
-                    },
-                    typeName: {
-                        value: typeName
-                    },
-                    itemSize: {
-                        value: typeInfo.itemSize
-                    },
-                    locationSize: {
-                        value: typeInfo.locationSize
-                    },
-                    primitiveSize: {
-                        value: typeInfo.primitiveSize
-                    },
-                    primitiveTypeName: {
-                        value: typeInfo.primitiveType
-                    },
-                    byteSize: {
-                        value: typeInfo.primitiveSize * typeInfo.itemSize * typeInfo.locationSize
-                    }
-                });
-                if (typeof gl[typeInfo.primitiveType] === 'number') {
-                    Object.defineProperty(accessor, 'primitiveType', {
-                        value: gl[typeInfo.primitiveType]
-                    });
-                }
-                Object.defineProperty(program.attribute, info.name, {
-                    value: accessor
-                });
-            }
-        }
-        {
-            const length = gl.getProgramParameter(program, gl.ACTIVE_UNIFORMS);
-            for (let i = 0; i < length; ++i) {
-                const info = gl.getActiveUniform(program, i);
-                const accessor = Object.create(null, {
-                    size: {
-                        value: info.size
-                    },
-                    type: {
-                        value: info.type
-                    },
-                    index: {
-                        value: i
-                    }
-                });
-                const location = gl.getUniformLocation(program, info.name);
-                if (location == null) {
-                    // throw new Error(`Runtime error: failed to determine the location of program uniform [${info.name}]`);
-                    continue;
-                }
-                const typeName = Object.keys(uniformTypeInfo).find(name => name in gl && gl[name] === info.type);
-                if (typeName == null) {
-                    throw new Error(`Runtime error: failed to determine the type of program uniform [${info.name}]: unknown type ${info.type}`);
-                }
-                const typeInfo = uniformTypeInfo[typeName];
-                Object.defineProperties(accessor, {
-                    location: {
-                        value: location
-                    },
-                    typeName: {
-                        value: typeName
-                    }
-                });
-                if (typeInfo.uniformValue != null) {
-                    Object.defineProperty(accessor, 'setValue', {
-                        value: setUniformValueFactory(typeInfo.uniformValue).bind(accessor, gl)
-                    });
-                }
-                if (typeInfo.uniformArray != null) {
-                    Object.defineProperty(accessor, 'setArray', {
-                        value: setUniformArrayFactory(typeInfo.uniformArray).bind(accessor, gl)
-                    });
-                }
-                Object.defineProperty(program.uniform, info.name, {
-                    value: accessor
-                });
-            }
-        }
-        {
-            const length = gl.getProgramParameter(program, gl.ACTIVE_UNIFORM_BLOCKS);
-            for (let i = 0; i < length; ++i) {
-                const info = Object.create(null);
-                const name = info.name = gl.getActiveUniformBlockName(program, i);
-                info.binding = gl.getActiveUniformBlockParameter(program, i, gl.UNIFORM_BLOCK_BINDING);
-                info.size = gl.getActiveUniformBlockParameter(program, i, gl.UNIFORM_BLOCK_DATA_SIZE);
-                info.count = gl.getActiveUniformBlockParameter(program, i, gl.UNIFORM_BLOCK_ACTIVE_UNIFORMS);
-                Object.defineProperty(program.uniform_block, name, {
-                    value: info
-                });
-            }
-        }
     } catch (e) {
         // Failure at any stage can still create some OpenGL (not necessarily GPU) resources.
         // We should release then if there was a failure.
@@ -204,6 +83,135 @@ export default function createProgram(gl, vertexSource, fragmentSource, options)
         throw e;
     }
     return program;
+}
+
+function programInfoFactory(getInfoName, getLocationName, countPropertyName, typeInfoMap, objectName) {
+    return main;
+    /**
+     * @param {WebGL2RenderingContext} gl
+     * @param {WebGLProgram} program
+     */
+    function main(gl, program) {
+        const target = Object.create(null);
+        const length = gl.getProgramParameter(program, gl[countPropertyName]);
+        for (let i = 0; i < length; ++i) {
+            parse(gl, target, program, i);
+        }
+        return target;
+    }
+
+    /**
+     * @param {WebGL2RenderingContext} gl
+     * @param {object} target
+     * @param {WebGLProgram} program
+     * @param {number} index
+     */
+    function parse(gl, target, program, index) {
+        const info = gl[getInfoName](program, index);
+        let name = info.name;
+        let is_array = false;
+        if (/\[[0-9]*\]$/.test(name)) {
+            name = /^(.*)\[[0-9]*\]$/.exec(name)[1];
+            is_array = true;
+        }
+        if (!is_array) {
+            generate(gl, target, program, index, name, info.type);
+        } else {
+            const array = [];
+            Object.defineProperty(target, name, {
+                value: array
+            });
+            for (let i = 0; i < info.size; ++i) {
+                generate(gl, array, program, index, `${name}[${i}]`, info.type, i);
+            }
+        }
+    }
+
+    /**
+     * @param {WebGL2RenderingContext} gl
+     * @param {object} target
+     * @param {WebGLProgram} program
+     * @param {number} index
+     * @param {string} name
+     * @param {number} type
+     */
+    function generate(gl, target, program, index, name, type, arrayIndex = null) {
+        const location = gl[getLocationName](program, name);
+        if (location == null) {
+            throw new Error(`Runtime error: failed to determine the location of program ${objectName} [${name}]`);
+        }
+        const typeName = Object.keys(typeInfoMap).find(name => name in gl && gl[name] === type);
+        if (typeName == null) {
+            throw new Error(`Runtime error: failed to determine the type of program ${objectName} [${name}]: unknown type ${type}`);
+        }
+        const typeInfo = typeInfoMap[typeName];
+        let itemTypeInfo = typeInfo;
+        let itemTypeName = typeName;
+        while (itemTypeInfo.itemType !== itemTypeName) {
+            itemTypeName = itemTypeInfo.itemType;
+            itemTypeInfo = typeInfoMap[itemTypeName];
+        }
+        const accessor = Object.create(null, {
+            name: {
+                value: name
+            },
+            index: {
+                value: index
+            },
+            type: {
+                value: type
+            },
+            location: {
+                value: location
+            },
+            alignBy: {
+                value: typeInfo.alignBy
+            },
+            alignSize: {
+                value: typeInfo.alignSize
+            },
+            itemType: {
+                value: typeInfo.itemType
+            },
+            glslType: {
+                value: typeInfo.glslType
+            },
+            itemLength: {
+                value: typeInfo.itemLength
+            },
+            primitiveType: {
+                value: itemTypeInfo.itemType
+            },
+            primitiveSize: {
+                value: itemTypeInfo.itemSize
+            },
+            byteLength: {
+                value: typeInfo.itemLength * typeInfo.itemSize
+            },
+            typeName: {
+                value: typeName
+            }
+        });
+        if (objectName === 'uniform') {
+            if (typeInfo.uniformValue != null) {
+                Object.defineProperty(accessor, 'setValue', {
+                    value: setUniformValueFactory(typeInfo.uniformValue).bind(accessor, gl)
+                });
+            }
+            if (typeInfo.uniformArray != null) {
+                Object.defineProperty(accessor, 'setArray', {
+                    value: setUniformArrayFactory(typeInfo.uniformArray).bind(accessor, gl)
+                });
+            }
+        }
+        if (arrayIndex == null) {
+            Object.defineProperty(target, name, {
+                value: accessor
+            });
+        } else {
+            target[arrayIndex] = accessor;
+        }
+    }
 }
 
 function setUniformValueFactory(method) {
@@ -224,85 +232,50 @@ function setUniformArrayFactory(method) {
 }
 
 const attribTypeInfo = {
-    FLOAT: { primitiveSize: 4, itemSize: 1, locationSize: 1, primitiveType: 'FLOAT', uniformValue: 'uniform1f', uniformArray: 'uniform1fv' },
-    FLOAT_VEC2: { primitiveSize: 4, itemSize: 2, locationSize: 1, primitiveType: 'FLOAT', uniformValue: 'uniform2f', uniformArray: 'uniform2fv' },
-    FLOAT_VEC3: { primitiveSize: 4, itemSize: 3, locationSize: 1, primitiveType: 'FLOAT', uniformValue: 'uniform3f', uniformArray: 'uniform3fv' },
-    FLOAT_VEC4: { primitiveSize: 4, itemSize: 4, locationSize: 1, primitiveType: 'FLOAT', uniformValue: 'uniform4f', uniformArray: 'uniform4fv' },
-    FLOAT_MAT2: { primitiveSize: 4, itemSize: 2, locationSize: 2, primitiveType: 'FLOAT', uniformArray: 'uniformMatrix2fv' },
-    FLOAT_MAT3: { primitiveSize: 4, itemSize: 3, locationSize: 3, primitiveType: 'FLOAT', uniformArray: 'uniformMatrix3fv' },
-    FLOAT_MAT4: { primitiveSize: 4, itemSize: 4, locationSize: 4, primitiveType: 'FLOAT', uniformArray: 'uniformMatrix4fv' },
-    FLOAT_MAT2x3: { primitiveSize: 4, itemSize: 2, locationSize: 3, primitiveType: 'FLOAT', uniformArray: 'uniformMatrix2x3fv' },
-    FLOAT_MAT2x4: { primitiveSize: 4, itemSize: 2, locationSize: 4, primitiveType: 'FLOAT', uniformArray: 'uniformMatrix2x4fv' },
-    FLOAT_MAT3x2: { primitiveSize: 4, itemSize: 3, locationSize: 2, primitiveType: 'FLOAT', uniformArray: 'uniformMatrix3x2fv' },
-    FLOAT_MAT3x4: { primitiveSize: 4, itemSize: 3, locationSize: 4, primitiveType: 'FLOAT', uniformArray: 'uniformMatrix3x4fv' },
-    FLOAT_MAT4x2: { primitiveSize: 4, itemSize: 4, locationSize: 3, primitiveType: 'FLOAT', uniformArray: 'uniformMatrix4x2fv' },
-    FLOAT_MAT4x3: { primitiveSize: 4, itemSize: 4, locationSize: 4, primitiveType: 'FLOAT', uniformArray: 'uniformMatrix4x3fv' },
-    INT: { primitiveSize: 4, itemSize: 1, locationSize: 1, primitiveType: 'INT', uniformValue: 'uniform1i', uniformArray: 'uniform1iv' },
-    INT_VEC2: { primitiveSize: 4, itemSize: 2, locationSize: 1, primitiveType: 'INT', uniformValue: 'uniform2i', uniformArray: 'uniform2iv' },
-    INT_VEC3: { primitiveSize: 4, itemSize: 3, locationSize: 1, primitiveType: 'INT', uniformValue: 'uniform3i', uniformArray: 'uniform3iv' },
-    INT_VEC4: { primitiveSize: 4, itemSize: 4, locationSize: 1, primitiveType: 'INT', uniformValue: 'uniform4i', uniformArray: 'uniform4iv' },
-    UNSIGNED_INT: { primitiveSize: 4, itemSize: 1, locationSize: 1, primitiveType: 'UNSIGNED_INT', uniformValue: 'uniform1ui', uniformArray: 'uniform1uiv' },
-    UNSIGNED_INT_VEC2: {
-        primitiveSize: 4,
-        itemSize: 2,
-        locationSize: 1,
-        primitiveType: 'UNSIGNED_INT',
-        uniformValue: 'uniform2ui',
-        uniformArray: 'uniform2uiv'
-    },
-    UNSIGNED_INT_VEC3: {
-        primitiveSize: 4,
-        itemSize: 3,
-        locationSize: 1,
-        primitiveType: 'UNSIGNED_INT',
-        uniformValue: 'uniform3ui',
-        uniformArray: 'uniform3uiv'
-    },
-    UNSIGNED_INT_VEC4: {
-        primitiveSize: 4,
-        itemSize: 4,
-        locationSize: 1,
-        primitiveType: 'UNSIGNED_INT',
-        uniformValue: 'uniform4ui',
-        uniformArray: 'uniform4uiv'
-    }
+    FLOAT: { itemSize: 4, itemLength: 1, alignBy: 4, alignSize: 4, glslType: 'float', itemType: 'FLOAT', uniformValue: 'uniform1f', uniformArray: 'uniform1fv' },
+    FLOAT_VEC2: { itemSize: 4, itemLength: 2, alignBy: 8, alignSize: 8, glslType: 'vec2', itemType: 'FLOAT', uniformValue: 'uniform2f', uniformArray: 'uniform2fv' },
+    FLOAT_VEC3: { itemSize: 4, itemLength: 3, alignBy: 16, alignSize: 12, glslType: 'vec3', itemType: 'FLOAT', uniformValue: 'uniform3f', uniformArray: 'uniform3fv' },
+    FLOAT_VEC4: { itemSize: 4, itemLength: 4, alignBy: 16, alignSize: 16, glslType: 'vec4', itemType: 'FLOAT', uniformValue: 'uniform4f', uniformArray: 'uniform4fv' },
+    FLOAT_MAT2: { itemSize: 8, itemLength: 2, alignBy: 8, alignSize: 16, glslType: 'mat2', itemType: 'FLOAT_VEC2', uniformArray: 'uniformMatrix2fv' },
+    FLOAT_MAT3: { itemSize: 12, itemLength: 3, alignBy: 16, alignSize: 44, glslType: 'mat3', itemType: 'FLOAT_VEC3', uniformArray: 'uniformMatrix3fv' },
+    FLOAT_MAT4: { itemSize: 16, itemLength: 4, alignBy: 16, alignSize: 64, glslType: 'mat4', itemType: 'FLOAT_VEC4', uniformArray: 'uniformMatrix4fv' },
+    FLOAT_MAT2x3: { itemSize: 12, itemLength: 2, alignBy: 16, alignSize: 28, glslType: 'mat2x3', itemType: 'FLOAT_VEC3', uniformArray: 'uniformMatrix2x3fv' },
+    FLOAT_MAT2x4: { itemSize: 16, itemLength: 2, alignBy: 16, alignSize: 32, glslType: 'mat2x4', itemType: 'FLOAT_VEC4', uniformArray: 'uniformMatrix2x4fv' },
+    FLOAT_MAT3x2: { itemSize: 8, itemLength: 3, alignBy: 8, alignSize: 24, glslType: 'mat3x2', itemType: 'FLOAT_VEC2', uniformArray: 'uniformMatrix3x2fv' },
+    FLOAT_MAT3x4: { itemSize: 16, itemLength: 3, alignBy: 16, alignSize: 48, glslType: 'mat3x4', itemType: 'FLOAT_VEC4', uniformArray: 'uniformMatrix3x4fv' },
+    FLOAT_MAT4x2: { itemSize: 8, itemLength: 4, alignBy: 8, alignSize: 32, glslType: 'mat4x2', itemType: 'FLOAT_VEC2', uniformArray: 'uniformMatrix4x2fv' },
+    FLOAT_MAT4x3: { itemSize: 12, itemLength: 4, alignBy: 16, alignSize: 60, glslType: 'mat4x3', itemType: 'FLOAT_VEC3', uniformArray: 'uniformMatrix4x3fv' },
+    INT: { itemSize: 4, itemLength: 1, alignBy: 4, alignSize: 4, glslType: 'int', itemType: 'INT', uniformValue: 'uniform1i', uniformArray: 'uniform1iv' },
+    INT_VEC2: { itemSize: 4, itemLength: 2, alignBy: 8, alignSize: 8, glslType: 'ivec2', itemType: 'INT', uniformValue: 'uniform2i', uniformArray: 'uniform2iv' },
+    INT_VEC3: { itemSize: 4, itemLength: 3, alignBy: 16, alignSize: 12, glslType: 'ivec3', itemType: 'INT', uniformValue: 'uniform3i', uniformArray: 'uniform3iv' },
+    INT_VEC4: { itemSize: 4, itemLength: 4, alignBy: 16, alignSize: 16, glslType: 'ivec4', itemType: 'INT', uniformValue: 'uniform4i', uniformArray: 'uniform4iv' },
+    UNSIGNED_INT: { itemSize: 4, itemLength: 1, alignBy: 4, alignSize: 4, glslType: 'uint', itemType: 'UNSIGNED_INT', uniformValue: 'uniform1ui', uniformArray: 'uniform1uiv' },
+    UNSIGNED_INT_VEC2: { itemSize: 4, itemLength: 2, alignBy: 8, alignSize: 8, glslType: 'uvec2', itemType: 'UNSIGNED_INT', uniformValue: 'uniform2ui', uniformArray: 'uniform2uiv' },
+    UNSIGNED_INT_VEC3: { itemSize: 4, itemLength: 3, alignBy: 16, alignSize: 12, glslType: 'uvec3', itemType: 'UNSIGNED_INT', uniformValue: 'uniform3ui', uniformArray: 'uniform3uiv' },
+    UNSIGNED_INT_VEC4: { itemSize: 4, itemLength: 4, alignBy: 16, alignSize: 16, glslType: 'uvec4', itemType: 'UNSIGNED_INT', uniformValue: 'uniform4ui', uniformArray: 'uniform4uiv' }
 };
 
 const uniformTypeInfo = {
     ...attribTypeInfo,
-    BOOL: { primitiveSize: 4, itemSize: 1, locationSize: 1, primitiveType: 'BOOL', uniformValue: 'uniform1ui', uniformArray: 'uniform1uiv' },
-    BOOL_VEC2: { primitiveSize: 4, itemSize: 2, locationSize: 1, primitiveType: 'BOOL', uniformValue: 'uniform2ui', uniformArray: 'uniform2uiv' },
-    BOOL_VEC3: { primitiveSize: 4, itemSize: 3, locationSize: 1, primitiveType: 'BOOL', uniformValue: 'uniform3ui', uniformArray: 'uniform3uiv' },
-    BOOL_VEC4: { primitiveSize: 4, itemSize: 4, locationSize: 1, primitiveType: 'BOOL', uniformValue: 'uniform4ui', uniformArray: 'uniform4uiv' },
-    SAMPLER_2D: { primitiveSize: 4, itemSize: 1, locationSize: 1, primitiveType: 'INT', uniformValue: 'uniform1i', uniformArray: 'uniform1iv' },
-    SAMPLER_3D: { primitiveSize: 4, itemSize: 1, locationSize: 1, primitiveType: 'INT', uniformValue: 'uniform1i', uniformArray: 'uniform1iv' },
-    SAMPLER_CUBE: { primitiveSize: 4, itemSize: 1, locationSize: 1, primitiveType: 'INT', uniformValue: 'uniform1i', uniformArray: 'uniform1iv' },
-    SAMPLER_2D_SHADOW: { primitiveSize: 4, itemSize: 1, locationSize: 1, primitiveType: 'INT', uniformValue: 'uniform1i', uniformArray: 'uniform1iv' },
-    SAMPLER_2D_ARRAY: { primitiveSize: 4, itemSize: 1, locationSize: 1, primitiveType: 'INT', uniformValue: 'uniform1i', uniformArray: 'uniform1iv' },
-    SAMPLER_2D_ARRAY_SHADOW: { primitiveSize: 4, itemSize: 1, locationSize: 1, primitiveType: 'INT', uniformValue: 'uniform1i', uniformArray: 'uniform1iv' },
-    SAMPLER_CUBE_SHADOW: { primitiveSize: 4, itemSize: 1, locationSize: 1, primitiveType: 'INT', uniformValue: 'uniform1i', uniformArray: 'uniform1iv' },
-    INT_SAMPLER_2D: { primitiveSize: 4, itemSize: 1, locationSize: 1, primitiveType: 'INT', uniformValue: 'uniform1i', uniformArray: 'uniform1iv' },
-    INT_SAMPLER_3D: { primitiveSize: 4, itemSize: 1, locationSize: 1, primitiveType: 'INT', uniformValue: 'uniform1i', uniformArray: 'uniform1iv' },
-    INT_SAMPLER_CUBE: { primitiveSize: 4, itemSize: 1, locationSize: 1, primitiveType: 'INT', uniformValue: 'uniform1i', uniformArray: 'uniform1iv' },
-    INT_SAMPLER_2D_ARRAY: { primitiveSize: 4, itemSize: 1, locationSize: 1, primitiveType: 'INT', uniformValue: 'uniform1i', uniformArray: 'uniform1iv' },
-    UNSIGNED_INT_SAMPLER_2D: { primitiveSize: 4, itemSize: 1, locationSize: 1, primitiveType: 'INT', uniformValue: 'uniform1i', uniformArray: 'uniform1iv' },
-    UNSIGNED_INT_SAMPLER_3D: { primitiveSize: 4, itemSize: 1, locationSize: 1, primitiveType: 'INT', uniformValue: 'uniform1i', uniformArray: 'uniform1iv' },
-    UNSIGNED_INT_SAMPLER_CUBE: {
-        primitiveSize: 4,
-        itemSize: 1,
-        locationSize: 1,
-        primitiveType: 'INT',
-        uniformValue: 'uniform1i',
-        uniformArray: 'uniform1iv'
-    },
-    UNSIGNED_INT_SAMPLER_2D_ARRAY: {
-        primitiveSize: 4,
-        itemSize: 1,
-        locationSize: 1,
-        primitiveType: 'INT',
-        uniformValue: 'uniform1i',
-        uniformArray: 'uniform1iv'
-    }
+    BOOL: { itemSize: 4, itemLength: 1, alignBy: 4, alignSize: 4, glslType: 'bool', itemType: 'BOOL', uniformValue: 'uniform1ui', uniformArray: 'uniform1uiv' },
+    BOOL_VEC2: { itemSize: 4, itemLength: 2, alignBy: 8, alignSize: 8, glslType: 'bvec2', itemType: 'BOOL', uniformValue: 'uniform2ui', uniformArray: 'uniform2uiv' },
+    BOOL_VEC3: { itemSize: 4, itemLength: 3, alignBy: 16, alignSize: 12, glslType: 'bvec3', itemType: 'BOOL', uniformValue: 'uniform3ui', uniformArray: 'uniform3uiv' },
+    BOOL_VEC4: { itemSize: 4, itemLength: 4, alignBy: 16, alignSize: 16, glslType: 'bvec4', itemType: 'BOOL', uniformValue: 'uniform4ui', uniformArray: 'uniform4uiv' },
+    SAMPLER_2D: { itemSize: 4, itemLength: 1, alignBy: 4, alignSize: 4, glslType: 'sampler2D', itemType: 'INT', uniformValue: 'uniform1i', uniformArray: 'uniform1iv' },
+    SAMPLER_3D: { itemSize: 4, itemLength: 1, alignBy: 4, alignSize: 4, glslType: 'sampler3D', itemType: 'INT', uniformValue: 'uniform1i', uniformArray: 'uniform1iv' },
+    SAMPLER_CUBE: { itemSize: 4, itemLength: 1, alignBy: 4, alignSize: 4, glslType: 'samplerCube', itemType: 'INT', uniformValue: 'uniform1i', uniformArray: 'uniform1iv' },
+    SAMPLER_2D_SHADOW: { itemSize: 4, itemLength: 1, alignBy: 4, alignSize: 4, glslType: 'sampler2DShadow', itemType: 'INT', uniformValue: 'uniform1i', uniformArray: 'uniform1iv' },
+    SAMPLER_2D_ARRAY: { itemSize: 4, itemLength: 1, alignBy: 4, alignSize: 4, glslType: 'sampler2DArray', itemType: 'INT', uniformValue: 'uniform1i', uniformArray: 'uniform1iv' },
+    SAMPLER_2D_ARRAY_SHADOW: { itemSize: 4, itemLength: 1, alignBy: 4, alignSize: 4, glslType: 'sampler2DArrayShadow', itemType: 'INT', uniformValue: 'uniform1i', uniformArray: 'uniform1iv' },
+    SAMPLER_CUBE_SHADOW: { itemSize: 4, itemLength: 1, alignBy: 4, alignSize: 4, glslType: 'samplerCubeShadow', itemType: 'INT', uniformValue: 'uniform1i', uniformArray: 'uniform1iv' },
+    INT_SAMPLER_2D: { itemSize: 4, itemLength: 1, alignBy: 4, alignSize: 4, glslType: 'isampler2D', itemType: 'INT', uniformValue: 'uniform1i', uniformArray: 'uniform1iv' },
+    INT_SAMPLER_3D: { itemSize: 4, itemLength: 1, alignBy: 4, alignSize: 4, glslType: 'isampler3D', itemType: 'INT', uniformValue: 'uniform1i', uniformArray: 'uniform1iv' },
+    INT_SAMPLER_CUBE: { itemSize: 4, itemLength: 1, alignBy: 4, alignSize: 4, glslType: 'isamplerCube', itemType: 'INT', uniformValue: 'uniform1i', uniformArray: 'uniform1iv' },
+    INT_SAMPLER_2D_ARRAY: { itemSize: 4, itemLength: 1, alignBy: 4, alignSize: 4, glslType: 'isampler2DArray', itemType: 'INT', uniformValue: 'uniform1i', uniformArray: 'uniform1iv' },
+    UNSIGNED_INT_SAMPLER_2D: { itemSize: 4, itemLength: 1, alignBy: 4, alignSize: 4, glslType: 'usampler2D', itemType: 'INT', uniformValue: 'uniform1i', uniformArray: 'uniform1iv' },
+    UNSIGNED_INT_SAMPLER_3D: { itemSize: 4, itemLength: 1, alignBy: 4, alignSize: 4, glslType: 'usampler3D', itemType: 'INT', uniformValue: 'uniform1i', uniformArray: 'uniform1iv' },
+    UNSIGNED_INT_SAMPLER_CUBE: { itemSize: 4, itemLength: 1, alignBy: 4, alignSize: 4, glslType: 'usamplerCube', itemType: 'INT', uniformValue: 'uniform1i', uniformArray: 'uniform1iv' },
+    UNSIGNED_INT_SAMPLER_2D_ARRAY: { itemSize: 4, itemLength: 1, alignBy: 4, alignSize: 4, glslType: 'usampler2DArray', itemType: 'INT', uniformValue: 'uniform1i', uniformArray: 'uniform1iv' }
 };
 
 function getType(value) {
@@ -312,6 +285,9 @@ function getType(value) {
         return `[${typeof value}]`;
     }
 }
+
+const programAttribParse = programInfoFactory('getActiveAttrib', 'getAttribLocation', 'ACTIVE_ATTRIBUTES', attribTypeInfo, 'attribute');
+const programUniformParse = programInfoFactory('getActiveUniform', 'getUniformLocation', 'ACTIVE_UNIFORMS', uniformTypeInfo, 'uniform');
 
 export class ShaderProgramError extends Error {
     constructor(message, properties = {}) {

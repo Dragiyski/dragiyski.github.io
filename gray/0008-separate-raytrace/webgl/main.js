@@ -1,11 +1,36 @@
 import '../../lib/gl-screen.js';
-import { Scene } from './scene.js';
+import { Scene } from './scene/0002-shapes/scene.js';
 
 async function main() {
+    window.addEventListener('performance.frametime', onFrameTimeMeasure);
     const scene = new Scene();
-    await scene.loadResources();
     const screen = document.getElementById('screen');
     screen.scene = scene;
+    screen.addEventListener('click', onScreenMouseClick);
+}
+
+function onScreenMouseClick(event) {
+    if (event.button !== 0) {
+        return;
+    }
+    const screen = document.getElementById('screen');
+    if (document.pointerLockElement === screen) {
+        return;
+    }
+    if (document.pointerLockElement != null) {
+        return;
+    }
+    event.preventDefault();
+    const maybePromise = screen.canvas.requestPointerLock({
+        unadjustedMovement: true
+    });
+    if (!maybePromise) {
+        return;
+    }
+    maybePromise.then(() => {
+    }, error => {
+        screen.canvas.requestPointerLock();
+    });
 }
 
 if (document.readyState !== 'complete') {
@@ -42,5 +67,12 @@ function unload() {
     const screen = document.getElementById('screen');
     if (screen.scene != null) {
         screen.release(screen.scene);
+    }
+}
+
+function onFrameTimeMeasure(event) {
+    const frame_info = document.getElementById('frame-info');
+    if (frame_info != null) {
+        frame_info.textContent = `${event.milliseconds.toFixed(3)}ms`;
     }
 }

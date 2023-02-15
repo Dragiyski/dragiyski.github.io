@@ -53,15 +53,76 @@ const rotation = {
     pitch: 0.0
 };
 
+export let screen_active = true;
+
+let mouse_speed_x = 0.5;
+let mouse_speed_y = 0.5;
+
+export const mouse_speed = Object.create(null, {
+    x: {
+        get() {
+            return mouse_speed_x;
+        },
+        set(value) {
+            if (isFinite(value) && value > 0) {
+                mouse_speed_x = value;
+            }
+        }
+    },
+    y: {
+        get() {
+            return mouse_speed_y;
+        },
+        set(value) {
+            if (isFinite(value) && value > 0) {
+                mouse_speed_y = value;
+            }
+        }
+    }
+});
+
+export function pause() {
+    screen_active = false;
+}
+
+export function resume() {
+    screen_active = true;
+}
+
 function keyboardMovementAction(type, dimension, value) {
     return function () {
+        if (!screen_active) {
+            return;
+        }
+        if (document.pointerLockElement == null) {
+            return;
+        }
         movement[type][dimension] = value;
         const event = new KeyboardMoveControlEvent(movement.positive, movement.negative);
-        window.dispatchEvent(event);
+        document.pointerLockElement.dispatchEvent(event);
     };
 }
 
-class KeyboardMoveControlEvent extends Event {
+export class ControlEvent extends Event {
+}
+
+class MouseMoveControlEvent extends ControlEvent {
+    constructor(yaw, pitch) {
+        super('control.mouse.move');
+        Object.defineProperties(this, {
+            yaw: {
+                configurable: true,
+                value: yaw
+            },
+            pitch: {
+                configurable: true,
+                value: pitch
+            }
+        });
+    }
+}
+
+class KeyboardMoveControlEvent extends ControlEvent {
     constructor(positive, negative) {
         super('control.keyboard.move');
         Object.defineProperties(this, {
@@ -117,9 +178,31 @@ function onKeyUp(event) {
     }
 }
 
+function onMouseMove(event) {
+    if (!screen_active) {
+        return;
+    }
+    if (document.pointerLockElement == null) {
+        return;
+    }
+    const width = screen.width;
+    const height = screen.height;
+    const diagonal = Math.sqrt(width * width + height * height);
+    const yawChange = (event.movementX / diagonal) * mouse_speed_x * Math.PI * 2;
+    const pitchChange = (event.movementY / diagonal) * mouse_speed_y * Math.PI * 2;
+    rotation.yaw = (Math.PI * 2 + rotation.yaw + yawChange) % (Math.PI * 2);
+    rotation.pitch = Math.max(-Math.PI * 0.5, Math.min(Math.PI * 0.5, rotation.pitch - pitchChange));
+    {
+        const event = new MouseMoveControlEvent(rotation.yaw, rotation.pitch);
+        document.pointerLockElement.dispatchEvent(event);
+    }
+}
+
 function main() {
     window.addEventListener('keydown', onKeyDown);
     window.addEventListener('keyup', onKeyUp);
+
+    document.addEventListener('mousemove', onMouseMove);
 }
 
 if (document.readyState !== 'complete') {
