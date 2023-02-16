@@ -1,5 +1,7 @@
 #version 300 es
 
+#extension GL_ARB_gpu_shader5 : enable
+
 precision highp float;
 precision highp int;
 

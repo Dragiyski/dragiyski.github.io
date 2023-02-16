@@ -212,7 +212,7 @@ export class Scene extends OpenGLScene {
             const uniform_state = this[properties.uniform_state];
             for (const name in uniform_state.blocks.by_name) {
                 const index = uniform_state.blocks.by_name[name].index;
-                const binding = context.program.uniform_block[name].binding;
+                const binding = context.program.block[name].binding;
                 const buffer = context.uniformBuffers[index];
                 gl.bindBufferBase(gl.UNIFORM_BUFFER, binding, buffer);
             }
@@ -221,8 +221,8 @@ export class Scene extends OpenGLScene {
         this.camera.writeUniform(gl, context.program);
         gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_BYTE, 0);
         gl.bindVertexArray(null);
-        for (const name in context.program.uniform_block) {
-            const binding = context.program.uniform_block[name.binding];
+        for (const name in context.program.block) {
+            const binding = context.program.block[name.binding];
             gl.bindBufferBase(gl.UNIFORM_BUFFER, binding, null);
         }
         gl.useProgram(null);

@@ -130,7 +130,7 @@ export default class OpenGLScreen extends HTMLDivElement {
                 this[methods.callContext]('onCreate', this[properties.scene] = scene);
             }
             this[methods.callContext]('onStart', this[properties.scene] = scene);
-            // this[methods.callContext]('onResize', scene);
+            this[properties.forceResize] = true;
         } else {
             this[properties.scene] = null;
         }

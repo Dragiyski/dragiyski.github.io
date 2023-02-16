@@ -21,6 +21,25 @@ uniform float direction_square[2];
 uniform vec3 normal;
 uniform float dot_normal_origin;
 
+struct Object {
+    uint id;
+};
+
+struct Texture {
+    uint type;
+    uint id;
+    float points[4];
+};
+
+struct Quad {
+    Object object;
+    vec3 origin;
+    vec3 direction[2];
+    Texture textures[3];
+};
+
+uniform Quad box[6];
+
 void main() {
     vec3 ray_direction = texture(ray_direction_texture, position).xyz;
     float dot_normal_ray_direction = dot(normal, ray_direction);

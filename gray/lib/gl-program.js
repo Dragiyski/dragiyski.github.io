@@ -59,15 +59,8 @@ export default function createProgram(gl, vertexSource, fragmentSource, options)
         if (!gl.getProgramParameter(program, gl.VALIDATE_STATUS)) {
             throw new ShaderProgramValidateError(gl.getProgramInfoLog(program), { context: gl, source: { vertex: vertexSource, fragment: fragmentSource } });
         }
-
-        Object.defineProperties(program, {
-            attribute: {
-                value: programAttribParse(gl, program)
-            },
-            uniform: {
-                value: programUniformParse(gl, program)
-            }
-        });
+        parseAttributes(gl, program);
+        parseUniforms(gl, program);
     } catch (e) {
         // Failure at any stage can still create some OpenGL (not necessarily GPU) resources.
         // We should release then if there was a failure.
@@ -85,131 +78,351 @@ export default function createProgram(gl, vertexSource, fragmentSource, options)
     return program;
 }
 
-function programInfoFactory(getInfoName, getLocationName, countPropertyName, typeInfoMap, objectName) {
-    return main;
+export class ProgramAttribute {
     /**
-     * @param {WebGL2RenderingContext} gl
-     * @param {WebGLProgram} program
+     * @type {WebGL2RenderingContext}
      */
-    function main(gl, program) {
-        const target = Object.create(null);
-        const length = gl.getProgramParameter(program, gl[countPropertyName]);
-        for (let i = 0; i < length; ++i) {
-            parse(gl, target, program, i);
-        }
-        return target;
-    }
+    #gl;
+    #program;
 
-    /**
-     * @param {WebGL2RenderingContext} gl
-     * @param {object} target
-     * @param {WebGLProgram} program
-     * @param {number} index
-     */
-    function parse(gl, target, program, index) {
-        const info = gl[getInfoName](program, index);
-        let name = info.name;
-        let is_array = false;
-        if (/\[[0-9]*\]$/.test(name)) {
-            name = /^(.*)\[[0-9]*\]$/.exec(name)[1];
-            is_array = true;
-        }
-        if (!is_array) {
-            generate(gl, target, program, index, name, info.type);
-        } else {
-            const array = [];
-            Object.defineProperty(target, name, {
-                value: array
-            });
-            for (let i = 0; i < info.size; ++i) {
-                generate(gl, array, program, index, `${name}[${i}]`, info.type, i);
-            }
-        }
-    }
-
-    /**
-     * @param {WebGL2RenderingContext} gl
-     * @param {object} target
-     * @param {WebGLProgram} program
-     * @param {number} index
-     * @param {string} name
-     * @param {number} type
-     */
-    function generate(gl, target, program, index, name, type, arrayIndex = null) {
-        const location = gl[getLocationName](program, name);
-        if (location == null) {
-            throw new Error(`Runtime error: failed to determine the location of program ${objectName} [${name}]`);
-        }
-        const typeName = Object.keys(typeInfoMap).find(name => name in gl && gl[name] === type);
+    constructor(gl, program, index) {
+        this.#gl = gl;
+        this.#program = program;
+        const info = gl.getActiveAttrib(program, index);
+        const typeName = glTypeMap[info.type];
         if (typeName == null) {
-            throw new Error(`Runtime error: failed to determine the type of program ${objectName} [${name}]: unknown type ${type}`);
+            throw new Error(`Unable to find type for variable ${info.name}: type = ${info.type}`);
         }
-        const typeInfo = typeInfoMap[typeName];
-        let itemTypeInfo = typeInfo;
-        let itemTypeName = typeName;
-        while (itemTypeInfo.itemType !== itemTypeName) {
-            itemTypeName = itemTypeInfo.itemType;
-            itemTypeInfo = typeInfoMap[itemTypeName];
+        const typeInfo = attribTypeInfo[typeName];
+        if (typeInfo == null) {
+            throw new Error(`Unable to find type for variable ${info.name}: type = ${typeName} not supported for an attribute`);
         }
-        const accessor = Object.create(null, {
+        Object.defineProperties(this, {
             name: {
-                value: name
+                enumerable: true,
+                value: info.name
             },
-            index: {
-                value: index
+            size: {
+                enumerable: true,
+                value: info.size
             },
             type: {
-                value: type
-            },
-            location: {
-                value: location
-            },
-            alignBy: {
-                value: typeInfo.alignBy
-            },
-            alignSize: {
-                value: typeInfo.alignSize
-            },
-            itemType: {
-                value: typeInfo.itemType
-            },
-            glslType: {
-                value: typeInfo.glslType
-            },
-            itemLength: {
-                value: typeInfo.itemLength
-            },
-            primitiveType: {
-                value: itemTypeInfo.itemType
-            },
-            primitiveSize: {
-                value: itemTypeInfo.itemSize
-            },
-            byteLength: {
-                value: typeInfo.itemLength * typeInfo.itemSize
+                enumerable: true,
+                value: info.type
             },
             typeName: {
+                enumerable: true,
                 value: typeName
+            },
+            typeInfo: {
+                enumerable: true,
+                value: typeInfo
+            },
+            itemType: {
+                enumerable: true,
+                value: gl[typeInfo.itemType]
+            },
+            itemTypeName: {
+                enumerable: true,
+                value: typeInfo.itemType
+            },
+            location: {
+                enumerable: true,
+                value: gl.getAttribLocation(program, info.name)
+            },
+            program: {
+                value: program
             }
         });
-        if (objectName === 'uniform') {
+    }
+
+    enableArray() {
+        return this.#gl.enableVertexAttribArray(this.location);
+    }
+
+    disableArray() {
+        return this.#gl.disableVertexAttribArray(this.location);
+    }
+}
+
+/**
+ * @param {WebGL2RenderingContext} gl
+ * @param {WebGLProgram} program
+ */
+function parseAttributes(gl, program) {
+    Object.defineProperty(program, 'attribute', {
+        value: Object.create(null)
+    });
+    const length = gl.getProgramParameter(program, gl.ACTIVE_ATTRIBUTES);
+    for (let index = 0; index < length; ++index) {
+        const attribute = new ProgramAttribute(gl, program, index);
+        if (attribute.name in program.attribute) {
+            throw new ReferenceError(`Duplicate program attribute name: ${attribute.name}`);
+        }
+        Object.defineProperty(program.attribute, attribute.name, {
+            value: attribute
+        });
+    }
+}
+
+/**
+ * @param {WebGL2RenderingContext} gl
+ * @param {WebGLProgram} program
+ */
+function parseUniforms(gl, program) {
+    Object.defineProperty(program, 'uniform', {
+        value: Object.create(null)
+    });
+    Object.defineProperty(program, 'block', {
+        value: Object.create(null)
+    });
+    {
+        const length = gl.getProgramParameter(program, gl.ACTIVE_UNIFORM_BLOCKS);
+        for (let index = 0; index < length; ++index) {
+            parseUniformBlock(index);
+        }
+    }
+    {
+        const length = gl.getProgramParameter(program, gl.ACTIVE_UNIFORMS);
+        for (let index = 0; index < length; ++index) {
+            parseUniform(index);
+        }
+    }
+
+    function parseUniformBlock(index) {
+        const uniformBlock = Object.create(null, {
+            name: {
+                value: gl.getActiveUniformBlockName(program, index)
+            },
+            hasVertexReference: {
+                value: gl.getActiveUniformBlockParameter(program, index, gl.UNIFORM_BLOCK_REFERENCED_BY_VERTEX_SHADER)
+            },
+            hasFragmentReference: {
+                value: gl.getActiveUniformBlockParameter(program, index, gl.UNIFORM_BLOCK_REFERENCED_BY_FRAGMENT_SHADER)
+            },
+            size: {
+                value: gl.getActiveUniformBlockParameter(program, index, gl.UNIFORM_BLOCK_DATA_SIZE)
+            },
+            binding: {
+                get() {
+                    return gl.getActiveUniformBlockParameter(program, index, gl.UNIFORM_BLOCK_BINDING);
+                },
+                set(value) {
+                    gl.uniformBlockBinding(program, index, value);
+                }
+            }
+        });
+        if (uniformBlock.name in program.block) {
+            throw new ReferenceError(`Duplicate (uniform) block name: ${uniformBlock.name}`);
+        }
+        Object.defineProperty(program.block, uniformBlock.name, {
+            value: uniformBlock
+        });
+        const uniformArrayList = {
+            index: gl.getActiveUniformBlockParameter(program, index, gl.UNIFORM_BLOCK_ACTIVE_UNIFORM_INDICES)
+        };
+        uniformArrayList.type = gl.getActiveUniforms(program, uniformArrayList.index, gl.UNIFORM_TYPE);
+        uniformArrayList.size = gl.getActiveUniforms(program, uniformArrayList.index, gl.UNIFORM_SIZE);
+        uniformArrayList.blockIndex = gl.getActiveUniforms(program, uniformArrayList.index, gl.UNIFORM_BLOCK_INDEX);
+        uniformArrayList.offset = gl.getActiveUniforms(program, uniformArrayList.index, gl.UNIFORM_OFFSET);
+        uniformArrayList.arrayStride = gl.getActiveUniforms(program, uniformArrayList.index, gl.UNIFORM_ARRAY_STRIDE);
+        uniformArrayList.matrixStride = gl.getActiveUniforms(program, uniformArrayList.index, gl.UNIFORM_MATRIX_STRIDE);
+        uniformArrayList.isRowMajor = gl.getActiveUniforms(program, uniformArrayList.index, gl.UNIFORM_IS_ROW_MAJOR);
+
+        const uniformLength = gl.getActiveUniformBlockParameter(program, index, gl.UNIFORM_BLOCK_ACTIVE_UNIFORMS);
+        for (let uniformIndex = 0; uniformIndex < uniformLength; ++uniformIndex) {
+            const uniformInfo = gl.getActiveUniform(program, uniformArrayList.index[uniformIndex]);
+            const typeName = glTypeMap[uniformInfo.type];
+            if (typeName == null) {
+                throw new Error(`Cannot find the type name for uniform ${uniformInfo.name} in uniform block ${uniformBlock.name}`);
+            }
+            const typeInfo = uniformBlockTypeInfo[typeName];
+            if (typeInfo == null) {
+                throw new Error(`Cannot find the type name for uniform ${uniformInfo.name} in uniform block ${uniformBlock.name}`);
+            }
+            if (uniformInfo.name in program.uniform) {
+                throw new ReferenceError(`Duplicate uniform name: ${uniformInfo.name}`);
+            }
+            const uniform = Object.create(null, {
+                name: {
+                    enumerable: true,
+                    value: uniformInfo.name
+                },
+                size: {
+                    enumerable: true,
+                    value: uniformInfo.size
+                },
+                type: {
+                    enumerable: true,
+                    value: uniformInfo.type
+                },
+                typeName: {
+                    enumerable: true,
+                    value: typeName
+                },
+                typeInfo: {
+                    enumerable: true,
+                    value: typeInfo
+                },
+                offset: {
+                    enumerable: true,
+                    value: uniformArrayList.offset[uniformIndex]
+                },
+                blockIndex: {
+                    enumerable: true,
+                    value: uniformArrayList.blockIndex[uniformIndex]
+                },
+                block: {
+                    enumerable: true,
+                    value: uniformBlock
+                },
+                blockName: {
+                    enumerable: true,
+                    value: uniformBlock.name
+                },
+                arrayStride: {
+                    enumerable: true,
+                    value: uniformArrayList.arrayStride[uniformIndex]
+                },
+                matrixStride: {
+                    enumerable: true,
+                    value: uniformArrayList.arrayStride[uniformIndex]
+                }
+            });
+            Object.defineProperty(program.uniform, uniform.name, {
+                enumerable: true,
+                value: uniform
+            });
+        }
+    }
+
+    function parseUniform(index) {
+        const info = gl.getActiveUniform(program, index);
+        if (info.name in program.uniform) {
+            return; // Uniforms might be in uniform block
+        }
+        let array_base_name = null;
+        const name = info.name;
+        if (/\[[0-9]*\]$/.test(name)) {
+            array_base_name = /^(.*)\[[0-9]*\]$/.exec(name)[1];
+        }
+        const typeName = glTypeMap[info.type];
+        if (typeName == null) {
+            throw new Error(`Cannot find the type name for uniform ${info.name}`);
+        }
+        const typeInfo = uniformTypeInfo[typeName];
+        if (typeInfo == null) {
+            throw new Error(`Cannot find the type name for uniform ${info.name}`);
+        }
+        if (array_base_name && info.size > 1) {
+            for (let i = 0; i < info.size; ++i) {
+                const item_name = `${array_base_name}[${i}]`;
+                const location = gl.getUniformLocation(program, item_name);
+                if (location == null) {
+                    continue;
+                }
+                const uniform = Object.create(null, {
+                    name: {
+                        enumerable: true,
+                        value: item_name
+                    },
+                    index: {
+                        enumerable: true,
+                        value: index
+                    },
+                    baseName: {
+                        enumerable: true,
+                        value: array_base_name
+                    },
+                    size: {
+                        enumerable: true,
+                        value: info.size
+                    },
+                    type: {
+                        enumerable: true,
+                        value: info.type
+                    },
+                    typeName: {
+                        enumerable: true,
+                        value: typeName
+                    },
+                    typeInfo: {
+                        enumerable: true,
+                        value: typeInfo
+                    },
+                    location: {
+                        value: location
+                    }
+                });
+                if (typeInfo.uniformValue != null) {
+                    Object.defineProperty(uniform, 'setValue', {
+                        value: setUniformValueFactory(typeInfo.uniformValue).bind(uniform, gl)
+                    });
+                }
+                if (typeInfo.uniformArray != null) {
+                    Object.defineProperty(uniform, 'setArray', {
+                        value: setUniformArrayFactory(typeInfo.uniformArray).bind(uniform, gl)
+                    });
+                }
+                if (item_name in program.uniform) {
+                    throw new TypeError(`Duplicate uniform name: ${item_name}`);
+                }
+                Object.defineProperty(program.uniform, item_name, {
+                    enumerable: true,
+                    value: uniform
+                });
+            }
+        } else {
+            const location = gl.getUniformLocation(program, name);
+            if (location == null) {
+                return;
+            }
+            const uniform = Object.create(null, {
+                name: {
+                    enumerable: true,
+                    value: name
+                },
+                index: {
+                    enumerable: true,
+                    value: index
+                },
+                size: {
+                    enumerable: true,
+                    value: info.size
+                },
+                type: {
+                    enumerable: true,
+                    value: info.type
+                },
+                typeName: {
+                    enumerable: true,
+                    value: typeName
+                },
+                typeInfo: {
+                    enumerable: true,
+                    value: typeInfo
+                },
+                location: {
+                    value: location
+                }
+            });
             if (typeInfo.uniformValue != null) {
-                Object.defineProperty(accessor, 'setValue', {
-                    value: setUniformValueFactory(typeInfo.uniformValue).bind(accessor, gl)
+                Object.defineProperty(uniform, 'setValue', {
+                    value: setUniformValueFactory(typeInfo.uniformValue).bind(uniform, gl)
                 });
             }
             if (typeInfo.uniformArray != null) {
-                Object.defineProperty(accessor, 'setArray', {
-                    value: setUniformArrayFactory(typeInfo.uniformArray).bind(accessor, gl)
+                Object.defineProperty(uniform, 'setArray', {
+                    value: setUniformArrayFactory(typeInfo.uniformArray).bind(uniform, gl)
                 });
             }
-        }
-        if (arrayIndex == null) {
-            Object.defineProperty(target, name, {
-                value: accessor
+            if (name in program.uniform) {
+                throw new TypeError(`Duplicate uniform name: ${name}`);
+            }
+            Object.defineProperty(program.uniform, name, {
+                enumerable: true,
+                value: uniform
             });
-        } else {
-            target[arrayIndex] = accessor;
         }
     }
 }
@@ -231,7 +444,7 @@ function setUniformArrayFactory(method) {
     };
 }
 
-const attribTypeInfo = {
+export const attribTypeInfo = Object.freeze({
     FLOAT: { itemSize: 4, itemLength: 1, alignBy: 4, alignSize: 4, glslType: 'float', itemType: 'FLOAT', uniformValue: 'uniform1f', uniformArray: 'uniform1fv' },
     FLOAT_VEC2: { itemSize: 4, itemLength: 2, alignBy: 8, alignSize: 8, glslType: 'vec2', itemType: 'FLOAT', uniformValue: 'uniform2f', uniformArray: 'uniform2fv' },
     FLOAT_VEC3: { itemSize: 4, itemLength: 3, alignBy: 16, alignSize: 12, glslType: 'vec3', itemType: 'FLOAT', uniformValue: 'uniform3f', uniformArray: 'uniform3fv' },
@@ -253,14 +466,9 @@ const attribTypeInfo = {
     UNSIGNED_INT_VEC2: { itemSize: 4, itemLength: 2, alignBy: 8, alignSize: 8, glslType: 'uvec2', itemType: 'UNSIGNED_INT', uniformValue: 'uniform2ui', uniformArray: 'uniform2uiv' },
     UNSIGNED_INT_VEC3: { itemSize: 4, itemLength: 3, alignBy: 16, alignSize: 12, glslType: 'uvec3', itemType: 'UNSIGNED_INT', uniformValue: 'uniform3ui', uniformArray: 'uniform3uiv' },
     UNSIGNED_INT_VEC4: { itemSize: 4, itemLength: 4, alignBy: 16, alignSize: 16, glslType: 'uvec4', itemType: 'UNSIGNED_INT', uniformValue: 'uniform4ui', uniformArray: 'uniform4uiv' }
-};
+});
 
-const uniformTypeInfo = {
-    ...attribTypeInfo,
-    BOOL: { itemSize: 4, itemLength: 1, alignBy: 4, alignSize: 4, glslType: 'bool', itemType: 'BOOL', uniformValue: 'uniform1ui', uniformArray: 'uniform1uiv' },
-    BOOL_VEC2: { itemSize: 4, itemLength: 2, alignBy: 8, alignSize: 8, glslType: 'bvec2', itemType: 'BOOL', uniformValue: 'uniform2ui', uniformArray: 'uniform2uiv' },
-    BOOL_VEC3: { itemSize: 4, itemLength: 3, alignBy: 16, alignSize: 12, glslType: 'bvec3', itemType: 'BOOL', uniformValue: 'uniform3ui', uniformArray: 'uniform3uiv' },
-    BOOL_VEC4: { itemSize: 4, itemLength: 4, alignBy: 16, alignSize: 16, glslType: 'bvec4', itemType: 'BOOL', uniformValue: 'uniform4ui', uniformArray: 'uniform4uiv' },
+const opaqueTypeInfo = {
     SAMPLER_2D: { itemSize: 4, itemLength: 1, alignBy: 4, alignSize: 4, glslType: 'sampler2D', itemType: 'INT', uniformValue: 'uniform1i', uniformArray: 'uniform1iv' },
     SAMPLER_3D: { itemSize: 4, itemLength: 1, alignBy: 4, alignSize: 4, glslType: 'sampler3D', itemType: 'INT', uniformValue: 'uniform1i', uniformArray: 'uniform1iv' },
     SAMPLER_CUBE: { itemSize: 4, itemLength: 1, alignBy: 4, alignSize: 4, glslType: 'samplerCube', itemType: 'INT', uniformValue: 'uniform1i', uniformArray: 'uniform1iv' },
@@ -278,6 +486,39 @@ const uniformTypeInfo = {
     UNSIGNED_INT_SAMPLER_2D_ARRAY: { itemSize: 4, itemLength: 1, alignBy: 4, alignSize: 4, glslType: 'usampler2DArray', itemType: 'INT', uniformValue: 'uniform1i', uniformArray: 'uniform1iv' }
 };
 
+const uniformOnlyTypeInfo = {
+    BOOL: { itemSize: 4, itemLength: 1, alignBy: 4, alignSize: 4, glslType: 'bool', itemType: 'BOOL', uniformValue: 'uniform1ui', uniformArray: 'uniform1uiv' },
+    BOOL_VEC2: { itemSize: 4, itemLength: 2, alignBy: 8, alignSize: 8, glslType: 'bvec2', itemType: 'BOOL', uniformValue: 'uniform2ui', uniformArray: 'uniform2uiv' },
+    BOOL_VEC3: { itemSize: 4, itemLength: 3, alignBy: 16, alignSize: 12, glslType: 'bvec3', itemType: 'BOOL', uniformValue: 'uniform3ui', uniformArray: 'uniform3uiv' },
+    BOOL_VEC4: { itemSize: 4, itemLength: 4, alignBy: 16, alignSize: 16, glslType: 'bvec4', itemType: 'BOOL', uniformValue: 'uniform4ui', uniformArray: 'uniform4uiv' }
+};
+
+export const uniformTypeInfo = Object.freeze({
+    ...attribTypeInfo,
+    ...opaqueTypeInfo,
+    ...uniformOnlyTypeInfo
+});
+
+const allTypeInfo = {
+    ...uniformTypeInfo
+};
+
+export const uniformBlockTypeInfo = Object.freeze({
+    ...attribTypeInfo,
+    ...uniformOnlyTypeInfo
+});
+
+const glTypeMap = {};
+
+for (const name in allTypeInfo) {
+    const value = WebGL2RenderingContext.prototype[name];
+    if (!Number.isSafeInteger(value)) {
+        throw new ReferenceError(`Cannot find WebGL2 constant: ${name}`);
+    }
+    Object.freeze(allTypeInfo[name]);
+    glTypeMap[value] = name;
+}
+
 function getType(value) {
     if (value === Object(value)) {
         return Object.prototype.toString.call(value);
@@ -285,9 +526,6 @@ function getType(value) {
         return `[${typeof value}]`;
     }
 }
-
-const programAttribParse = programInfoFactory('getActiveAttrib', 'getAttribLocation', 'ACTIVE_ATTRIBUTES', attribTypeInfo, 'attribute');
-const programUniformParse = programInfoFactory('getActiveUniform', 'getUniformLocation', 'ACTIVE_UNIFORMS', uniformTypeInfo, 'uniform');
 
 export class ShaderProgramError extends Error {
     constructor(message, properties = {}) {
