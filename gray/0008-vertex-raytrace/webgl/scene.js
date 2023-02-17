@@ -78,6 +78,49 @@ export class Scene extends OpenGLScene {
             move_speed: 12,
             timestamp: null
         };
+
+        this.boxes = [{
+            origin: [-3, 50, 0],
+            direction: [
+                [6, 0, 0],
+                [0, 5, 0],
+                [0, 0, 8]
+            ]
+        }];
+
+        this.data = this.generateBoxData();
+    }
+
+    generateBoxData() {
+        const vertex_data = [];
+        const index_data = [];
+        let base_index = 0;
+        for (const box of this.boxes) {
+            for (let d = 0; d < 3; ++d) {
+                for (let m = 0; m < 2; ++m) {
+                    const origin = m ? add_vector_vector(box.origin, box.direction[d]) : box.origin;
+                    const di = [0, 1, 2];
+                    di.splice(d, 1);
+                    const normal = normalize_vector(cross_vector_vector(box.direction[di[0]], box.direction[di[1]]));
+                    for (let i = 0; i < 4; ++i) {
+                        let point = [...origin];
+                        for (let k = 0; k < 2; ++k) {
+                            if (i & (1 << k)) {
+                                point = add_vector_vector(point, box.direction[di[k]]);
+                            }
+                        }
+                        vertex_data.push(...[...point, ...normal]);
+                    }
+                    // eslint-disable-next-line no-loop-func
+                    index_data.push(...[0, 1, 2, 1, 3, 2].map(n => base_index + n));
+                    base_index += 4;
+                }
+            }
+        }
+        return {
+            vertex: Float32Array.from(vertex_data),
+            index: Uint16Array.from(index_data)
+        };
     }
 
     /**
@@ -104,7 +147,6 @@ export class Scene extends OpenGLScene {
         gl.disable(gl.SCISSOR_TEST);
         gl.disable(gl.CULL_FACE);
         gl.disable(gl.DEPTH_TEST);
-        gl.depthRange(0, 1000);
 
         context.quad_program = createProgram(gl, shader_source.quad_vertex, shader_source.quad_fragment);
 
@@ -112,30 +154,16 @@ export class Scene extends OpenGLScene {
         context.indexBuffer = gl.createBuffer();
         context.vertexArray = gl.createVertexArray();
 
-        const quad_data = [
-            [-3, 50, -3],
-            [6, 0, 0],
-            [0, 0, 8]
-        ];
-        const vertex_data = Float32Array.from([
-            ...quad_data[0],
-            ...add_vector_vector(quad_data[0], quad_data[1]),
-            ...add_vector_vector(quad_data[0], quad_data[2]),
-            ...add_vector_vector(add_vector_vector(quad_data[0], quad_data[1]), quad_data[2])
-        ]);
-        const index_data = Uint8Array.from([
-            0, 1, 2,
-            1, 3, 2
-        ]);
-
         gl.bindVertexArray(context.vertexArray);
         gl.bindBuffer(gl.ARRAY_BUFFER, context.vertexBuffer);
-        gl.bufferData(gl.ARRAY_BUFFER, vertex_data, gl.STATIC_DRAW);
+        gl.bufferData(gl.ARRAY_BUFFER, this.data.vertex, gl.STATIC_DRAW);
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, context.indexBuffer);
-        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, index_data, gl.STATIC_DRAW);
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, this.data.index, gl.STATIC_DRAW);
 
         gl.enableVertexAttribArray(0);
-        gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 3 * 4, 0);
+        gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 6 * 4, 0);
+        gl.enableVertexAttribArray(1);
+        gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 6 * 4, 3 * 4);
 
         gl.bindVertexArray(null);
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
@@ -207,7 +235,6 @@ export class Scene extends OpenGLScene {
             camera_forward = [float32.epsilon, float32.epsilon, camera_forward[2]];
         }
         const camera_right = normalize_vector(cross_vector_vector(camera_forward, [0, 0, 1]));
-        console.log(camera_right);
         const camera_up = normalize_vector(neg_vector(cross_vector_vector(camera_forward, camera_right)));
         this.camera.axes = [
             camera_right,
@@ -272,6 +299,10 @@ export class Scene extends OpenGLScene {
         const screen_right_square = dot_vector_vector(screen_right, screen_right);
         const screen_up_square = dot_vector_vector(screen_up, screen_up);
 
+        gl.enable(gl.DEPTH_TEST);
+        gl.depthFunc(gl.GEQUAL);
+        gl.depthMask(true);
+        gl.clearDepth(0.0);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
         const program = context.quad_program;
@@ -286,7 +317,7 @@ export class Scene extends OpenGLScene {
         program.uniform.screen_right_square?.setValue?.(screen_right_square);
         program.uniform.screen_up_square?.setValue?.(screen_up_square);
         gl.bindVertexArray(context.vertexArray);
-        gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_BYTE, 0);
+        gl.drawElements(gl.TRIANGLES, this.data.index.length, gl.UNSIGNED_SHORT, 0);
         gl.bindVertexArray(null);
         gl.useProgram(null);
 
@@ -308,7 +339,7 @@ export class Scene extends OpenGLScene {
         // this.raytrace(gl, context);
     }
 
-    raytrace(gl, context) {}
+    raytrace(gl, context) { }
 
     onRelease(gl, context) {
         destroyFrameTimeMeasure(gl, context);

@@ -1,5 +1,5 @@
 import '../../lib/gl-screen.js';
-import { Scene } from './scene/0002-shapes/scene.js';
+import { Scene } from './scene.js';
 
 async function main() {
     window.addEventListener('performance.frametime', onFrameTimeMeasure);
