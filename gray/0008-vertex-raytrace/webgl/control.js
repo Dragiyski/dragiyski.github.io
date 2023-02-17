@@ -23,15 +23,15 @@ const keyboard = Object.assign(Object.create(null), {
     right: {
         name: 'Move Right',
         code: 'KeyD',
-        down: keyboardMovementAction('negative', 0, 1),
-        up: keyboardMovementAction('negative', 0, 0),
+        down: keyboardMovementAction('positive', 0, 1),
+        up: keyboardMovementAction('positive', 0, 0),
         state: false
     },
     up: {
         name: 'Move Up',
         code: 'KeyQ',
-        down: keyboardMovementAction('negative', 1, 1),
-        up: keyboardMovementAction('negative', 1, 0),
+        down: keyboardMovementAction('positive', 1, 1),
+        up: keyboardMovementAction('positive', 1, 0),
         state: false
     },
     down: {
