@@ -50,17 +50,9 @@ export class Scene extends OpenGLScene {
             keyboard_move_negative: [0, 0, 0],
             timestamp: null
         };
-        this.frame_time_query = {
-            in_this_frame: false,
-            expect_result: false
-        };
         this.antialias = 1;
         this.max_width = 400;
         this.max_height = 300;
-        // this.max_pixels = 1920 * 1080;
-        // this.max_pixels = 640 * 480;
-        // this.max_pixels = 400 * 300;
-        // this.max_pixels = 100 * 100;
     }
 
     async loadResources() {
@@ -89,8 +81,18 @@ export class Scene extends OpenGLScene {
         if (gl.getExtension('EXT_color_buffer_float') == null) {
             throw new Error('Missing required WebGL extension: EXT_color_buffer_float');
         }
-        if ((this.EXT_disjoint_timer_query_webgl2 = gl.getExtension('EXT_disjoint_timer_query_webgl2')) != null) {
-            this.frame_time_query = gl.createQuery();
+        context.timer_queue_ext = null;
+        for (const extName of ['EXT_disjoint_timer_query_webgl2', 'EXT_disjoint_timer_query']) {
+            const ext = gl.getExtension(extName);
+            if (ext != null) {
+                context.timer_queue_ext = ext;
+                break;
+            }
+        }
+        if (context.timer_queue_ext != null) {
+            context.frame_time_query = gl.createQuery();
+            context.in_this_frame = false;
+            context.expect_result = false;
         }
 
         {
@@ -300,11 +302,10 @@ export class Scene extends OpenGLScene {
         const camera_position = this.camera.position;
         const world_screen_center = add_vector_vector(camera_position, mul_number_vector(this.near_frame, camera_triple[2]));
 
-        if (this.EXT_disjoint_timer_query_webgl2 != null && !this.frame_time_query.expect_result) {
-            console.log(performance.now().toFixed(3) + ': frame_time: glBeginQuery()');
-            gl.beginQuery(this.EXT_disjoint_timer_query_webgl2.TIME_ELAPSED_EXT, this.frame_time_query);
-            this.frame_time_query.expect_result = true;
-            this.frame_time_query.in_this_frame = true;
+        if (context.timer_queue_ext != null && !context.frame_time_query.expect_result) {
+            gl.beginQuery(context.timer_queue_ext.TIME_ELAPSED_EXT, context.frame_time_query);
+            context.frame_time_query.expect_result = true;
+            context.frame_time_query.in_this_frame = true;
         }
 
         gl.disable(gl.DEPTH_TEST);
@@ -348,29 +349,27 @@ export class Scene extends OpenGLScene {
         // gl.readPixels(0, 0, this.width, this.height, gl.RGBA, gl.FLOAT, data);
         // debugger;
 
-        if (this.EXT_disjoint_timer_query_webgl2 != null && this.frame_time_query.in_this_frame) {
-            console.log(performance.now().toFixed(3) + ': frame_time: glEndQuery()');
-            gl.endQuery(this.EXT_disjoint_timer_query_webgl2.TIME_ELAPSED_EXT);
-            this.frame_time_query.in_this_frame = false;
-            this.updateFrameTime(gl);
+        if (context.timer_queue_ext != null && context.frame_time_query.in_this_frame) {
+            gl.endQuery(context.timer_queue_ext.TIME_ELAPSED_EXT);
+            context.frame_time_query.in_this_frame = false;
+            this.updateFrameTime(gl, context);
         }
 
         this.camera.timestamp = performance.now();
     }
 
-    updateFrameTime(gl) {
-        if (!this.frame_time_query.expect_result) {
+    updateFrameTime(gl, context) {
+        if (!context.frame_time_query.expect_result) {
             return;
         }
-        if (gl.getQueryParameter(this.frame_time_query, gl.QUERY_RESULT_AVAILABLE)) {
-            let time = gl.getQueryParameter(this.frame_time_query, gl.QUERY_RESULT);
+        if (gl.getQueryParameter(context.frame_time_query, gl.QUERY_RESULT_AVAILABLE)) {
+            let time = gl.getQueryParameter(context.frame_time_query, gl.QUERY_RESULT);
             time /= 1e6;
             document.getElementById('frame-info').textContent = `${time.toFixed(3)}ms`;
-            console.log(performance.now().toFixed(3) + ': frame_time: gl.getQueryParameter() = ' + time.toFixed(3) + 'ms');
-            this.frame_time_query.expect_result = false;
+            context.frame_time_query.expect_result = false;
         } else {
             this.frame_time_interval_id = setTimeout(() => {
-                this.updateFrameTime(gl);
+                this.updateFrameTime(gl, context);
             }, 0);
         }
     }
