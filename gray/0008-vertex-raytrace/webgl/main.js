@@ -1,9 +1,17 @@
+import '../../lib/webgl-screen.js';
+import '../../lib/keyboard-mouse-control.js';
+import Scene from './scene.js';
 import '../../lib/gl-screen.js';
-import { Scene } from './scene.js';
 
 async function main() {
     window.addEventListener('performance.frametime', onFrameTimeMeasure);
-    const scene = new Scene();
+    const scene = new Scene({
+        camera: {
+            options: {
+                moveSpeed: 10
+            }
+        }
+    });
     const screen = document.getElementById('screen');
     screen.scene = scene;
     screen.addEventListener('click', onScreenMouseClick);

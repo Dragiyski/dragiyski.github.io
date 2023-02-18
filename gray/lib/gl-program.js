@@ -31,7 +31,7 @@ export default function createProgram(gl, vertexSource, fragmentSource, options)
         }
         gl.compileShader(vertexShader);
         if (!gl.getShaderParameter(vertexShader, gl.COMPILE_STATUS)) {
-            throw new ShaderCompileError('VertexShaderError: ' + gl.getShaderInfoLog(vertexShader), { context: gl, shaderSource: vertexSource, shaderType: 'VERTEX_SHADER' });
+            throw new ShaderCompileError(gl.getShaderInfoLog(vertexShader), { context: gl, shaderSource: vertexSource, shaderType: 'VERTEX_SHADER' });
         }
         fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
         if (typeof options.beforeSource === 'function') {
@@ -43,7 +43,7 @@ export default function createProgram(gl, vertexSource, fragmentSource, options)
         gl.shaderSource(fragmentShader, fragmentSource);
         gl.compileShader(fragmentShader);
         if (!gl.getShaderParameter(fragmentShader, gl.COMPILE_STATUS)) {
-            throw new ShaderCompileError('FragmentShaderError: ' + gl.getShaderInfoLog(fragmentShader), { context: gl, shaderSource: fragmentSource, shaderType: 'FRAGMENT_SHADER' });
+            throw new ShaderCompileError(gl.getShaderInfoLog(fragmentShader), { context: gl, shaderSource: fragmentSource, shaderType: 'FRAGMENT_SHADER' });
         }
         program = gl.createProgram();
         gl.attachShader(program, vertexShader);
