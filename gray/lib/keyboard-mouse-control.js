@@ -23,15 +23,15 @@ const keyboard = Object.assign(Object.create(null), {
     right: {
         name: 'Move Right',
         code: 'KeyD',
-        down: keyboardMovementAction('negative', 0, 1),
-        up: keyboardMovementAction('negative', 0, 0),
+        down: keyboardMovementAction('positive', 0, 1),
+        up: keyboardMovementAction('positive', 0, 0),
         state: false
     },
     up: {
         name: 'Move Up',
         code: 'KeyQ',
-        down: keyboardMovementAction('negative', 1, 1),
-        up: keyboardMovementAction('negative', 1, 0),
+        down: keyboardMovementAction('positive', 1, 1),
+        up: keyboardMovementAction('positive', 1, 0),
         state: false
     },
     down: {
@@ -48,52 +48,8 @@ const movement = {
     negative: [0, 0, 0]
 };
 
-const rotation = {
-    yaw: 0.0,
-    pitch: 0.0
-};
-
-export let screen_active = true;
-
-let mouse_speed_x = 0.5;
-let mouse_speed_y = 0.5;
-
-export const mouse_speed = Object.create(null, {
-    x: {
-        get() {
-            return mouse_speed_x;
-        },
-        set(value) {
-            if (isFinite(value) && value > 0) {
-                mouse_speed_x = value;
-            }
-        }
-    },
-    y: {
-        get() {
-            return mouse_speed_y;
-        },
-        set(value) {
-            if (isFinite(value) && value > 0) {
-                mouse_speed_y = value;
-            }
-        }
-    }
-});
-
-export function pause() {
-    screen_active = false;
-}
-
-export function resume() {
-    screen_active = true;
-}
-
 function keyboardMovementAction(type, dimension, value) {
     return function () {
-        if (!screen_active) {
-            return;
-        }
         if (document.pointerLockElement == null) {
             return;
         }
@@ -107,16 +63,16 @@ export class ControlEvent extends Event {
 }
 
 class MouseMoveControlEvent extends ControlEvent {
-    constructor(yaw, pitch) {
+    constructor(deltaYaw, deltaPitch) {
         super('control.mouse.move');
         Object.defineProperties(this, {
-            yaw: {
+            deltaYaw: {
                 configurable: true,
-                value: yaw
+                value: deltaYaw
             },
-            pitch: {
+            deltaPitch: {
                 configurable: true,
-                value: pitch
+                value: deltaPitch
             }
         });
     }
@@ -179,23 +135,17 @@ function onKeyUp(event) {
 }
 
 function onMouseMove(event) {
-    if (!screen_active) {
-        return;
-    }
     if (document.pointerLockElement == null) {
         return;
     }
     const width = screen.width;
     const height = screen.height;
     const diagonal = Math.sqrt(width * width + height * height);
-    const yawChange = (event.movementX / diagonal) * mouse_speed_x * Math.PI * 2;
-    const pitchChange = (event.movementY / diagonal) * mouse_speed_y * Math.PI * 2;
-    rotation.yaw = (Math.PI * 2 + rotation.yaw + yawChange) % (Math.PI * 2);
-    rotation.pitch = Math.max(-Math.PI * 0.5, Math.min(Math.PI * 0.5, rotation.pitch - pitchChange));
-    {
-        const event = new MouseMoveControlEvent(rotation.yaw, rotation.pitch);
-        document.pointerLockElement.dispatchEvent(event);
-    }
+    const deltaYaw = (event.movementX / diagonal) * Math.PI * 2;
+    const deltaPitch = (event.movementY / diagonal) * Math.PI * 2;
+
+    const nextEvent = new MouseMoveControlEvent(deltaYaw, deltaPitch);
+    document.pointerLockElement.dispatchEvent(nextEvent);
 }
 
 function main() {
