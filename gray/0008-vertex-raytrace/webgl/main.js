@@ -8,7 +8,8 @@ async function main() {
     const scene = new Scene({
         camera: {
             options: {
-                moveSpeed: 10
+                moveSpeed: 10,
+                fieldOfView: 60
             }
         }
     });

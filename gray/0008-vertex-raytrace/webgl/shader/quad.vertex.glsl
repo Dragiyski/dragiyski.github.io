@@ -26,11 +26,14 @@ void main() {
     float ray_depth = length(ray_vector);
     vec3 ray_direction = ray_vector / ray_depth;
     float dot_screen_normal_ray_direction = dot(screen_normal, ray_direction);
-    float screen_depth = (dot_screen_normal_screen_origin - dot_screen_normal_camera_origin) / abs(dot_screen_normal_ray_direction);
+    float abs_dot_screen_normal_ray_direction = abs(dot_screen_normal_ray_direction);
+    float screen_depth = (dot_screen_normal_screen_origin - dot_screen_normal_camera_origin) / abs_dot_screen_normal_ray_direction;
     vec3 screen_point = camera_origin + screen_depth * ray_direction;
     vec3 screen_direction = screen_point - screen_origin;
     float screen_x = dot(screen_direction, screen_right) / screen_right_2;
     float screen_y = dot(screen_direction, screen_up) / screen_up_2;
+    float screen_factor = dot_screen_normal_ray_direction / abs_dot_screen_normal_ray_direction;
+    float screen_z = screen_factor * ray_depth;
     position = position_in;
     gl_Position = vec4(screen_x, screen_y, 0.0, 1.0);
 }
