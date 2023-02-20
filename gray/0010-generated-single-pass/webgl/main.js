@@ -17,7 +17,9 @@ async function main() {
                 type: RaytraceScene.objectTypes.DRAWABLE_SPHERE,
                 position: [0, 50, 0],
                 radius: 10,
-                color: [1, 0, 0]
+                texture: 0,
+                latitude: [Math.sin((23.5) / 180 * Math.PI), 0, Math.cos((23.5) / 180 * Math.PI)],
+                longitude: [0, 1, 0]
             },
             {
                 type: RaytraceScene.objectTypes.DRAWABLE_SPHERE,

@@ -1,6 +1,7 @@
+import { float32 } from '../../lib/float.js';
 import createProgram from '../../lib/gl-program.js';
 import { assert, assertVectorLength } from '../../lib/math-assert.js';
-import { add_vector_vector } from '../../lib/math.js';
+import { dot_vector_vector, length_vector } from '../../lib/math.js';
 import { loadTextFile } from '../../lib/utils.js';
 import FirstPersonScene from '../../lib/webgl/first-person/scene.js';
 
@@ -18,6 +19,10 @@ const shader_source = {
     raytrace_fragment: 'shader/raytrace.fragment.glsl'
 };
 
+const texture_source = {
+    earth_color_1024: 'texture/earth-color-1024.jpg'
+};
+
 {
     const jobs = [];
     for (const name in shader_source) {
@@ -30,13 +35,22 @@ const shader_source = {
             shader_source[name] = source;
         }));
     }
+    for (const name in texture_source) {
+        const path = texture_source[name];
+        const url = new URL(path, script_url);
+        const image = new Image();
+        image.src = url;
+        jobs.push(image.decode().then(() => {
+            texture_source[name] = image;
+        }));
+    }
     await Promise.all(jobs);
 }
 
 export default class RaytraceScene extends FirstPersonScene {
     #data = {
         float: [],
-        uint: [],
+        int: [],
         object: [],
         children: []
     };
@@ -48,6 +62,9 @@ export default class RaytraceScene extends FirstPersonScene {
         ...options
     }) {
         super({ ...options });
+        this.textures = [
+            texture_source.earth_color_1024
+        ];
         objectData[objectTypes.NULL](this.#data, { ...options.null });
         for (const object of objects) {
             if (!(object.type in objectData)) {
@@ -86,7 +103,7 @@ export default class RaytraceScene extends FirstPersonScene {
                 +1, -1,
                 +1, +1
             ]);
-            const compute_index_data = Uint8Array.from([
+            const compute_index_data = Int8Array.from([
                 // 0 3
                 // 1 2
                 0, 1, 2,
@@ -110,7 +127,7 @@ export default class RaytraceScene extends FirstPersonScene {
 
         const single_layer_textures = [];
         single_layer_textures.push(context.object_float_data = gl.createTexture());
-        single_layer_textures.push(context.object_uint_data = gl.createTexture());
+        single_layer_textures.push(context.object_int_data = gl.createTexture());
         single_layer_textures.push(context.object_index_data = gl.createTexture());
         single_layer_textures.push(context.object_children_data = gl.createTexture());
 
@@ -132,9 +149,9 @@ export default class RaytraceScene extends FirstPersonScene {
             gl.bindTexture(gl.TEXTURE_2D, context.object_float_data);
             gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, data.length / 4, 1, 0, gl.RGBA, gl.FLOAT, data);
         }
-        if (this.#data.uint.length > 0) {
-            const data = Int32Array.from(this.#data.uint);
-            gl.bindTexture(gl.TEXTURE_2D, context.object_uint_data);
+        if (this.#data.int.length > 0) {
+            const data = Int32Array.from(this.#data.int);
+            gl.bindTexture(gl.TEXTURE_2D, context.object_int_data);
             gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32I, data.length / 4, 1, 0, gl.RGBA_INTEGER, gl.INT, data);
         }
         if (this.#data.children.length > 0) {
@@ -144,6 +161,21 @@ export default class RaytraceScene extends FirstPersonScene {
         }
 
         context.raytrace_program = createProgram(gl, shader_source.compute_center_vertex, shader_source.raytrace_fragment);
+
+        context.texture_array_1024 = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D_ARRAY, context.texture_array_1024);
+        gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_BASE_LEVEL, 0);
+        gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_MAX_LEVEL, 10);
+        gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        if (this.textures.length > 0) {
+            gl.texStorage3D(gl.TEXTURE_2D_ARRAY, 1, gl.RGBA8, 1024, 1024, this.textures.length);
+            for (let i = 0; i < this.textures.length; ++i) {
+                gl.texSubImage3D(gl.TEXTURE_2D_ARRAY, 0, 0, 0, i, 1024, 1024, 1, gl.RGBA, gl.UNSIGNED_BYTE, this.textures[i]);
+            }
+        }
+        gl.generateMipmap(gl.TEXTURE_2D_ARRAY);
+        gl.bindTexture(gl.TEXTURE_2D_ARRAY, null);
     }
 
     /**
@@ -169,12 +201,17 @@ export default class RaytraceScene extends FirstPersonScene {
         program.uniform.data_float?.setValue?.(1);
 
         gl.activeTexture(gl.TEXTURE2);
-        gl.bindTexture(gl.TEXTURE_2D, context.object_uint_data);
-        program.uniform.data_uint?.setValue?.(2);
+        gl.bindTexture(gl.TEXTURE_2D, context.object_int_data);
+        program.uniform.data_int?.setValue?.(2);
 
         gl.activeTexture(gl.TEXTURE3);
         gl.bindTexture(gl.TEXTURE_2D, context.object_children_data);
         program.uniform.data_children?.setValue?.(3);
+
+        gl.activeTexture(gl.TEXTURE4);
+        gl.bindTexture(gl.TEXTURE_2D, null);
+        gl.bindTexture(gl.TEXTURE_2D_ARRAY, context.texture_array_1024);
+        program.uniform.texture_1024?.setValue?.(4);
 
         // TODO: Bind at least the 4 data textures here;
         gl.bindVertexArray(context.compute_vertex_array);
@@ -193,17 +230,37 @@ const objectData = {
     [objectTypes.DRAWABLE_SPHERE]: function objectDrawableSphere(data, {
         position,
         radius,
-        color
+        color,
+        texture,
+        latitude,
+        longitude
     }) {
         assertVectorLength(position, 3);
         assert(isFinite(radius) && radius > 0);
-        assertVectorLength(color, 3);
+        if (texture != null) {
+            assert(color == null);
+            assertVectorLength(latitude, 3);
+            assertVectorLength(longitude, 3);
+            assert(float32.isEqual(dot_vector_vector(latitude, longitude), 0));
+            assert(float32.isEqual(length_vector(latitude), 1));
+            assert(float32.isEqual(length_vector(longitude), 1));
+        } else {
+            assertVectorLength(color, 3);
+        }
         const floatBaseIndex = data.float.length / 4;
-        // const uintBaseIndex = data.uint.length;
+        const intBaseIndex = data.int.length;
         // const objectId = data.object.length;
+        let flags = 0;
         data.float.push(...position, radius);
-        data.float.push(...color, 1);
-        data.object.push(objectTypes.DRAWABLE_SPHERE, 0, floatBaseIndex, 0);
+        if (texture != null) {
+            data.float.push(...longitude, 1);
+            data.float.push(...latitude, 1);
+            data.int.push(texture, 0, 0, 0);
+            flags |= (1 << 0);
+        } else {
+            data.float.push(...color, 1);
+        }
+        data.object.push(objectTypes.DRAWABLE_SPHERE, flags, floatBaseIndex, intBaseIndex);
     }
 };
 Object.setPrototypeOf(objectData, null);
