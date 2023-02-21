@@ -55,10 +55,6 @@ export default function createProgram(gl, vertexSource, fragmentSource, options)
         if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
             throw new ShaderProgramLinkError(gl.getProgramInfoLog(program), { context: gl, source: { vertex: vertexSource, fragment: fragmentSource } });
         }
-        gl.validateProgram(program);
-        if (!gl.getProgramParameter(program, gl.VALIDATE_STATUS)) {
-            throw new ShaderProgramValidateError(gl.getProgramInfoLog(program), { context: gl, source: { vertex: vertexSource, fragment: fragmentSource } });
-        }
         parseAttributes(gl, program);
         parseUniforms(gl, program);
     } catch (e) {
