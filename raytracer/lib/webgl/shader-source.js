@@ -43,6 +43,7 @@ async function do_preprocess(source, { files = [], file, modulePath = [document.
     } else {
         target.push(`#line 1 ${sourceIndex}`);
     }
+    parseSource(source);
     for (let i = 0; i < source.length; ++i) {
         const line = source[i];
         if (/^\s*#/.test(line)) {
@@ -62,7 +63,9 @@ async function do_preprocess(source, { files = [], file, modulePath = [document.
                     throw new ParseError(file, i + 1, 'Directive #import: unsupported type, expected one of ["bool", "int", "float", "expression"]');
                 }
                 text = text.substring(type.length).trim();
+                let require_as = false;
                 if (text.startsWith('"')) {
+                    require_as = true;
                     const quoted = text.split('"');
                     let name = [quoted[0], quoted[1]];
                     let end = false;
@@ -93,6 +96,9 @@ async function do_preprocess(source, { files = [], file, modulePath = [document.
                     text = text.substring(targetName.length).trim();
                     keyword = text.split(/\s+/, 1)[0];
                 } else {
+                    if (require_as) {
+                        throw new ParseError(file, i + 1, 'Directive #import: quoted name requires "as" keyword');
+                    }
                     targetName = sourceName;
                 }
                 if (!/^[a-zA-Z_][a_zA-Z0-9_]*$/.test(targetName) || reserved_macro_words.indexOf(targetName) >= 0) {
@@ -188,16 +194,16 @@ async function do_preprocess(source, { files = [], file, modulePath = [document.
                     relativeToFile = true;
                 } else if (text.startsWith('<')) {
                     if (!text.endsWith('>')) {
-                        throw new ParseError(file, i + 1, 'Directive #import: incomplete angle bracket');
+                        throw new ParseError(file, i + 1, 'Directive #include: incomplete angle bracket');
                     }
                     targetUrl = JSON.parse(`"${text.substring(1, text.length - 1)}"`);
                     relativeToFile = false;
                 } else {
-                    throw new ParseError(file, i + 1, 'Directive #import: url must be quoted or within angle-brackets');
+                    throw new ParseError(file, i + 1, 'Directive #include: url must be quoted or within angle-brackets');
                 }
                 const includeInfo = await getTextFile(targetUrl, relativeToFile ? [file] : modulePath);
                 if (includeInfo == null) {
-                    throw new ParseError(file, i + 1, `Directive #import: unable to find module: ${targetUrl}`);
+                    throw new ParseError(file, i + 1, `Directive #include: unable to find module: ${targetUrl}`);
                 }
                 if (once) {
                     if (files.indexOf(includeInfo[0]) >= 0) {
@@ -218,6 +224,181 @@ async function do_preprocess(source, { files = [], file, modulePath = [document.
         target.push(line);
     }
     return target.join('\n');
+}
+
+function parseSource({ source, file, sourceIndex }) {
+    const target = [];
+    for (let index = 0; index < source.length; ++index) {
+        let line = source[index];
+        const target_lines = [line];
+        while (line.endsWith('\\')) {
+            ++index;
+            if (index >= source.length) {
+                throw new ParseError(file, index, `Unfinished line continuation`);
+            }
+            line += '\n' + source[index];
+            target_lines.push(source[index]);
+        }
+        line = line.trimStart();
+        let match;
+        if ((match = /^#include\s+/.exec(line)) != null) {
+            line = line.substring(match[0].length);
+            let once = /^once\s+/.exec(line);
+            if (once != null) {
+                line = line.substring(once[0].length);
+                once = true;
+            } else {
+                once = false;
+            }
+            line = line.trim();
+            const value = Object.create(null);
+            value.once = once;
+            value.source = target_lines;
+            try {
+                parseLocalUrl(value, line);
+            } catch (e) {
+                throw ParseError(file, index + 1, e.message);
+            }
+            target.push(value);
+        } else if ((match = /^#import\s+/.exec(line)) != null) {
+            line = line.substring(match[0].length);
+            const value = Object.create(null);
+            match = /^([a-z])\s+/.exec(line);
+            if (match == null) {
+                throw new ParseError(file, index, `#import directive: expected valid type`);
+            }
+            value.type = match[1];
+            if (!(value.type in importType)) {
+                throw new ParseError(file, index, `#import directive: expected valid type`);
+            }
+            line = line.substring(match[0].length);
+            let t1;
+            try {
+                t1 = parseObjectPath(line);
+            } catch (e) {
+                throw new ParseError(file, index, e.message);
+            }
+            value.path = t1.path;
+            line = t1.line;
+            value.source = target_lines;
+            match = /^as\s+/.exec(line);
+            if (match != null) {
+                line = line.substring(match[0].length);
+                match = /^([a-zA-Z_][a-zA-Z0-9_]*)\s+/;
+                if (match == null) {
+                    throw new ParseError(file, index, `#import directive: expected valid #define name`);
+                }
+                value.name = match[1];
+                line = line.substring(match[0].length);
+            } else {
+                if (value.path.length > 1 || !/^([a-zA-Z_][a-zA-Z0-9_]*)$/.test(value.path[0])) {
+                    throw new ParseError(file, index, `#import directive: expected source name to be valid #define name`);
+                }
+                value.name = value.path[0];
+            }
+            match = /^from\s+/.exec(line);
+            if (match == null) {
+                throw new ParseError(file, index, `#import directive: expected "from" word`);
+            }
+            try {
+                parseLocalUrl(value, line);
+            } catch (e) {
+                throw new ParseError(file, index, e.message);
+            }
+            value.line = index;
+            value.fileIndex = sourceIndex;
+            target.push(value);
+        }
+    }
+}
+
+const importType = {
+    bool(target, context) {
+        target.push(
+            `#define ${context.name} ${context.value ? '1' : '0'}`,
+            `#line ${context.line + context.source.length} ${context.fileIndex}`
+        );
+    },
+    if(target, context) {
+        const generated = [];
+        if (context.value) {
+            generated.push(`#define ${context.name}`);
+        }
+        generated.push(`#line ${context.line + context.source.length} ${context.fileIndex}`);
+        target.push(...generated);
+    }
+};
+Object.setPrototypeOf(importType, null);
+
+function parseObjectPath(line) {
+    const path = [];
+    do {
+        if (/^\s+/.test(line) || line.length < 0) {
+            break;
+        }
+        if (line.startsWith('[')) {
+            if (line[1] !== '"') {
+                throw new Error(`#import directive: invalid path, expected string within square brackets`);
+            }
+            const end = /[^\\]"/g;
+            end.lastIndex = 2;
+            const match = end.exec(line);
+            if (match == null) {
+                throw new Error(`#import directive: unmatched quote`);
+            }
+            const entry = line.substring(0, match.index + 3); // +1 = ^\\, +2 = ", +3 = ]
+            if (!entry.endsWith('"]')) {
+                throw new Error(`#import directive: unmatched square bracket`);
+            }
+            const str = entry.substring(1, entry.length - 1);
+            path.push(JSON.parse(str));
+            line = line.substring(entry.length);
+        } else {
+            let end = line.indexOf('.');
+            let length = 1;
+            if (end < 0) {
+                end = line.indexOf('[');
+                if (end < 0) {
+                    const match = /\s+/.exec(line);
+                    if (match == null) {
+                        throw new Error(`#import directive: expected "from" or "as" after a path`);
+                    }
+                    end = match.index;
+                    length = 0;
+                }
+            }
+            const str = line.substring(0, end);
+            if (!/^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(str)) {
+                throw new Error(`#import directive: invalid path, non-quoted path must be valid javascript literal name`);
+            }
+            line = line.substring(end + length);
+            path.push(str);
+        }
+    } while (true);
+    if (path.length <= 0) {
+        throw new Error(`#import directive: invalid path`);
+    }
+    return { path, line };
+}
+
+function parseLocalUrl(target, source) {
+    let local;
+    if (source.startsWith('"')) {
+        if (!source.endsWith('"')) {
+            throw new Error('Unfinished quote');
+        }
+        local = true;
+    } else if (source.startsWith('<')) {
+        if (!source.endsWith('>')) {
+            throw new Error('Unmatched angle bracket');
+        }
+        local = false;
+        source = `"${source.substring(1, source.length - 1)}"`;
+    } else {
+        throw new Error('Expected <url> or "url" format');
+    }
+    target.url = JSON.parse(source);
+    target.url_local = local;
 }
 
 function getMacro(object) {
