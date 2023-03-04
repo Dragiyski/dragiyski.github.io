@@ -177,6 +177,8 @@ export default class FirstPersonScene extends WebGLScene {
         const diagonal_size = Math.tan(field_of_view);
         const view_height = diagonal_size / Math.sqrt(1 + context.aspectRatio * context.aspectRatio);
         const view_width = context.aspectRatio * view_height;
+        this.camera.screen.width = view_width;
+        this.camera.screen.height = view_height;
         this.camera.screen.right = mul_number_vector(view_width, this.camera.state.right);
         this.camera.screen.up = mul_number_vector(view_height, this.camera.state.up);
         this.camera.screen.origin = add_vector_vector(this.camera.state.origin, this.camera.state.forward);
