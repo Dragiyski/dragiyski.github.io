@@ -1,0 +1,5 @@
+class FloatPointer {
+}
+
+class IntPointer {
+}
