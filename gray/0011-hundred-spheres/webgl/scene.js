@@ -20,7 +20,6 @@ const shader_source = {
 };
 
 const texture_source = {
-    // earth_color_1024: 'texture/earth-color-1024.jpg'
 };
 
 {

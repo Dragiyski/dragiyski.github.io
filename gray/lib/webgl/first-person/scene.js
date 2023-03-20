@@ -1,6 +1,5 @@
 import { float32 } from '../../float.js';
-import { assert } from '../../math-assert.js';
-import { add_vector_vector, cross_vector_vector, div_vector_number, dot_vector_vector, length_vector, mat4_rotation_x, mat4_rotation_z, mul_matrix_matrix, mul_matrix_vector, mul_number_vector, neg_vector, normalize_vector, sub_vector_vector } from '../../math.js';
+import { Matrix3x3, Vector3D, cross, mul, neg, normalize, sub, length, div, add } from '../../math/index.js';
 import WebGLScene from '../../webgl-scene.js';
 
 const events = {
@@ -16,25 +15,21 @@ export default class FirstPersonScene extends WebGLScene {
                 moveSpeed = 1,
                 mouseSpeedX = 0.5,
                 mouseSpeedY = 0.5,
-                worldUp = [0, 0, 1],
-                worldDepth = [0, 1, 0],
+                worldUp = new Vector3D(0, 0, 1),
+                worldDepth = new Vector3D(0, 1, 0),
                 fieldOfView = 60
             } = {},
             state: {
-                origin = [0, 0, 0],
-                forward = [0, 1, 0],
-                up = [0, 0, 1],
-                right = [1, 0, 0],
+                origin = new Vector3D(0, 0, 0),
+                forward = new Vector3D(0, 1, 0),
+                up = new Vector3D(0, 0, 1),
+                right = new Vector3D(1, 0, 0),
                 yaw = 0,
                 pitch = 0
             } = {}
         } = {},
         ...options
     } = {}) {
-        assert(float32.isEqual(dot_vector_vector(forward, up), 0));
-        assert(float32.isEqual(dot_vector_vector(forward, right), 0));
-        assert(float32.isEqual(dot_vector_vector(up, right), 0));
-        assert(float32.isEqual(dot_vector_vector(worldUp, worldDepth), 0));
         super({ ...options });
         this.camera = {
             options: {
@@ -52,7 +47,7 @@ export default class FirstPersonScene extends WebGLScene {
                 up,
                 right,
                 timestamp: null,
-                moveVelocity: [0, 0, 0],
+                moveVelocity: new Vector3D(0, 0, 0),
                 yaw,
                 pitch
             },
@@ -87,26 +82,29 @@ export default class FirstPersonScene extends WebGLScene {
     #controlMouseMove(gl, context, event) {
         this.camera.state.yaw = (Math.PI * 2 + this.camera.state.yaw + event.deltaYaw * this.camera.options.mouseSpeedX) % (Math.PI * 2);
         this.camera.state.pitch = Math.max(-Math.PI * 0.5, Math.min(Math.PI * 0.5, this.camera.state.pitch - event.deltaPitch * this.camera.options.mouseSpeedY));
-        const camera_rotation_matrix = mul_matrix_matrix(mat4_rotation_z(-this.camera.state.yaw), mat4_rotation_x(this.camera.state.pitch));
-        let camera_forward = mul_matrix_vector(camera_rotation_matrix, [...this.camera.options.defaultForward, 1]);
-        camera_forward = normalize_vector(div_vector_number(camera_forward.slice(0, 3), camera_forward[3]));
+        const camera_rotation_matrix = mul(
+            Matrix3x3.rotation(-this.camera.state.yaw, [0, 0, 1]),
+            Matrix3x3.rotation(this.camera.state.pitch, [1, 0, 0])
+        );
+        let camera_forward = mul(camera_rotation_matrix, this.camera.options.defaultForward);
+        camera_forward = normalize(camera_forward);
         // TODO: If camera looks 100% up or down, camera_forward will be co-linear with worldUp;
         // TODO: Since we need a non-colinear vector we can use do worldDepth (be careful about the sign of the result)
         // TODO: In LHS system (checked by the initial camera values), result might be "left" and not "right".
-        this.camera.state.right = normalize_vector(cross_vector_vector(camera_forward, this.camera.options.worldUp));
-        this.camera.state.up = normalize_vector(neg_vector(cross_vector_vector(camera_forward, this.camera.state.right)));
+        this.camera.state.right = normalize(cross(camera_forward, this.camera.options.worldUp));
+        this.camera.state.up = normalize(neg(cross(camera_forward, this.camera.state.right)));
         this.camera.state.forward = camera_forward;
     }
 
     #controlKeyboardMove(gl, context, event) {
-        const keyboard_vector = sub_vector_vector(event.positive, event.negative);
-        const kv_length = length_vector(keyboard_vector);
+        const keyboard_vector = sub(new Vector3D(event.positive), new Vector3D(event.negative));
+        const kv_length = length(keyboard_vector);
         if (float32.isEqual(kv_length, 0)) {
-            this.camera.state.moveVelocity = [0, 0, 0];
+            this.camera.state.moveVelocity = new Vector3D(0, 0, 0);
             this.camera.state.timestamp = null;
         } else {
             // Same as normalize(), but the length is already known;
-            this.camera.state.moveVelocity = div_vector_number(keyboard_vector, kv_length);
+            this.camera.state.moveVelocity = div(keyboard_vector, kv_length);
             this.camera.state.timestamp = performance.now();
         }
     }
@@ -166,12 +164,12 @@ export default class FirstPersonScene extends WebGLScene {
             const timestamp = performance.now();
             const time_delta = (timestamp - this.camera.state.timestamp) * 1e-3;
             this.camera.state.timestamp = timestamp;
-            const move_offset = mul_number_vector(this.camera.options.moveSpeed * time_delta, this.camera.state.moveVelocity);
-            let move_vector = [0, 0, 0];
-            move_vector = add_vector_vector(move_vector, mul_number_vector(move_offset[0], this.camera.state.right));
-            move_vector = add_vector_vector(move_vector, mul_number_vector(move_offset[1], this.camera.state.up));
-            move_vector = add_vector_vector(move_vector, mul_number_vector(move_offset[2], this.camera.state.forward));
-            this.camera.state.origin = add_vector_vector(this.camera.state.origin, move_vector);
+            const move_offset = mul(this.camera.options.moveSpeed * time_delta, this.camera.state.moveVelocity);
+            let move_vector = new Vector3D(0, 0, 0);
+            move_vector = add(move_vector, mul(move_offset[0], this.camera.state.right));
+            move_vector = add(move_vector, mul(move_offset[1], this.camera.state.up));
+            move_vector = add(move_vector, mul(move_offset[2], this.camera.state.forward));
+            this.camera.state.origin = add(this.camera.state.origin, move_vector);
         }
         const field_of_view = (this.camera.options.fieldOfView * 0.5) / 180 * Math.PI;
         const diagonal_size = Math.tan(field_of_view);
@@ -179,8 +177,8 @@ export default class FirstPersonScene extends WebGLScene {
         const view_width = context.aspectRatio * view_height;
         this.camera.screen.width = view_width;
         this.camera.screen.height = view_height;
-        this.camera.screen.right = mul_number_vector(view_width, this.camera.state.right);
-        this.camera.screen.up = mul_number_vector(view_height, this.camera.state.up);
-        this.camera.screen.origin = add_vector_vector(this.camera.state.origin, this.camera.state.forward);
+        this.camera.screen.right = mul(view_width, this.camera.state.right);
+        this.camera.screen.up = mul(view_height, this.camera.state.up);
+        this.camera.screen.origin = add(this.camera.state.origin, this.camera.state.forward);
     }
 }
