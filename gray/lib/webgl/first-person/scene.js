@@ -39,7 +39,7 @@ export default class FirstPersonScene extends WebGLScene {
                 worldUp,
                 worldDepth,
                 fieldOfView,
-                defaultForward: forward
+                defaultForward: worldDepth
             },
             state: {
                 origin,
@@ -53,6 +53,7 @@ export default class FirstPersonScene extends WebGLScene {
             },
             screen: {}
         };
+        this.#computeView();
     }
 
     #pointerLockChange(gl, context) {
@@ -79,11 +80,9 @@ export default class FirstPersonScene extends WebGLScene {
         }
     }
 
-    #controlMouseMove(gl, context, event) {
-        this.camera.state.yaw = (Math.PI * 2 + this.camera.state.yaw + event.deltaYaw * this.camera.options.mouseSpeedX) % (Math.PI * 2);
-        this.camera.state.pitch = Math.max(-Math.PI * 0.5, Math.min(Math.PI * 0.5, this.camera.state.pitch - event.deltaPitch * this.camera.options.mouseSpeedY));
+    #computeView() {
         const camera_rotation_matrix = mul(
-            Matrix3x3.rotation(-this.camera.state.yaw, [0, 0, 1]),
+            Matrix3x3.rotation(-this.camera.state.yaw, this.camera.options.worldUp),
             Matrix3x3.rotation(this.camera.state.pitch, [1, 0, 0])
         );
         let camera_forward = mul(camera_rotation_matrix, this.camera.options.defaultForward);
@@ -94,6 +93,12 @@ export default class FirstPersonScene extends WebGLScene {
         this.camera.state.right = normalize(cross(camera_forward, this.camera.options.worldUp));
         this.camera.state.up = normalize(neg(cross(camera_forward, this.camera.state.right)));
         this.camera.state.forward = camera_forward;
+    }
+
+    #controlMouseMove(gl, context, event) {
+        this.camera.state.yaw = (Math.PI * 2 + this.camera.state.yaw + event.deltaYaw * this.camera.options.mouseSpeedX) % (Math.PI * 2);
+        this.camera.state.pitch = Math.max(-Math.PI * 0.5, Math.min(Math.PI * 0.5, this.camera.state.pitch - event.deltaPitch * this.camera.options.mouseSpeedY));
+        this.#computeView();
     }
 
     #controlKeyboardMove(gl, context, event) {

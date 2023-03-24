@@ -1,20 +1,9 @@
-import '../../lib/webgl-screen.js';
-import '../../lib/keyboard-mouse-control.js';
-import RaytraceScene from './scene.js';
 import '../../lib/gl-screen.js';
-import { Vector3D, normalize, radians_from, sub } from '../../lib/math/index.js';
+import { Scene } from './scene.js';
 
 async function main() {
     window.addEventListener('performance.frametime', onFrameTimeMeasure);
-    const camera_origin = new Vector3D(-2, 0, -3);
-    const scene = new RaytraceScene({
-        camera: {
-            options: {
-                moveSpeed: 1,
-                fieldOfView: 60
-            }
-        }
-    });
+    const scene = new Scene();
     const screen = document.getElementById('screen');
     screen.scene = scene;
     screen.addEventListener('click', onScreenMouseClick);

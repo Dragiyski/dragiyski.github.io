@@ -41,11 +41,12 @@ vec2 reduce(vec3 value) {
 void main() {
     // Step 1: Prepare for screen raytracing:
     vec3 perspective_pixel = perspective_center + position.x * perspective_right + position.y * perspective_up;
-    Ray perspective_ray = Ray(perspective_origin, normalize(perspective_pixel - perspective_origin));
+    vec3 model_perspective_origin = reduce(inverse_model_transform * vec4(perspective_origin, 1.0));
+    vec3 model_perspective_pixel = reduce(inverse_model_transform * vec4(perspective_pixel, 1.0));
 
     Ray ray = Ray(
-        reduce(inverse_model_transform * vec4(perspective_ray.origin, 1.0)),
-        normalize(vec3(inverse_model_transform * vec4(perspective_ray.direction, 0.0)))
+        model_perspective_origin,
+        normalize(model_perspective_pixel - model_perspective_origin)
     );
 
     vec3 sphere_vector = ray.origin - sphere_origin;
@@ -54,21 +55,19 @@ void main() {
 
     float D = b * b - 4.0 * c;
     if (D < 0.0) {
-        color_out = vec4(0.0);
-        return;
+        discard;
     }
 
     float depth = (-b - sqrt(D)) * 0.5;
     if (depth < 0.0) {
         depth = (-b + sqrt(D)) * 0.5;
         if (depth < 0.0) {
-            color_out = vec4(0.0);
-            return;
+            discard;
         }
     }
 
     vec3 model_hit_point = ray.origin + depth * ray.direction;
     vec3 normal = normalize(model_hit_point - sphere_origin);
     
-    color_out = vec4(normal * 0.5 + 0.5, 1.0);
+    color_out = vec4(normal * 0.5 + 0.5, 0.5);
 }
