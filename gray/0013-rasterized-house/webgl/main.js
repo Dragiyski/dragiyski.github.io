@@ -6,12 +6,13 @@ import { Vector3D, normalize, radians_from, sub } from '../../lib/math/index.js'
 
 async function main() {
     window.addEventListener('performance.frametime', onFrameTimeMeasure);
-    const camera_origin = new Vector3D(-2, 0, -3);
     const scene = new RaytraceScene({
         camera: {
             options: {
-                moveSpeed: 1,
-                fieldOfView: 60
+                moveSpeed: 2,
+                fieldOfView: 60,
+                worldUp: new Vector3D(0, 1, 0),
+                worldDepth: new Vector3D(0, 0, 1)
             }
         }
     });

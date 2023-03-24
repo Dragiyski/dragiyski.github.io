@@ -10963,13 +10963,17 @@ export class Matrix3x3 {
                 0, 0, 1
             );
         } else {
-            const q = Vector4D.quaternions(radians, ...axis);
-            return new Matrix3x3(
-                1 - 2 * q.y * q.y - 2 * q.z * q.z, 2 * q.x * q.y - 2 * q.z * q.w, 2 * q.x * q.z + 2 * q.y * q.w,
-                2 * q.x * q.y + 2 * q.z * q.w, 1 - 2 * q.x * q.x - 2 * q.z * q.z, 2 * q.y * q.z - 2 * q.x * q.w,
-                2 * q.x * q.z - 2 * q.y * q.w, 2 * q.y * q.z + 2 * q.x * q.w, 1 - 2 * q.x * q.x - 2 * q.y * q.y
-            );
+            return this.rotation_from_quaternions(Vector4D.quaternions(radians, ...axis));
         }
+    }
+
+    static rotation_from_quaternions(...args) {
+        const q = new Vector4D(...args);
+        return new Matrix3x3(
+            1 - 2 * q.y * q.y - 2 * q.z * q.z, 2 * q.x * q.y - 2 * q.z * q.w, 2 * q.x * q.z + 2 * q.y * q.w,
+            2 * q.x * q.y + 2 * q.z * q.w, 1 - 2 * q.x * q.x - 2 * q.z * q.z, 2 * q.y * q.z - 2 * q.x * q.w,
+            2 * q.x * q.z - 2 * q.y * q.w, 2 * q.y * q.z + 2 * q.x * q.w, 1 - 2 * q.x * q.x - 2 * q.y * q.y
+        );
     }
 
     static scale(...args) {
@@ -11172,7 +11176,11 @@ export class Matrix4x4 {
     }
 
     static rotation(radians, ...axis) {
-        const q = Vector4D.quaternions(radians, ...axis);
+        return this.rotation_from_quaternions(Vector4D.quaternions(radians, ...axis));
+    }
+
+    static rotation_from_quaternions(...args) {
+        const q = new Vector4D(...args);
         return new Matrix4x4(
             1 - 2 * q.y * q.y - 2 * q.z * q.z, 2 * q.x * q.y - 2 * q.z * q.w, 2 * q.x * q.z + 2 * q.y * q.w, 0,
             2 * q.x * q.y + 2 * q.z * q.w, 1 - 2 * q.x * q.x - 2 * q.z * q.z, 2 * q.y * q.z - 2 * q.x * q.w, 0,
@@ -12419,6 +12427,9 @@ implementation[Vector2D_polymorphism][Matrix2x2_polymorphism].mul = function mul
         implementation[Vector2D_polymorphism][Vector2D_polymorphism].dot(x, y.columns[1])
     );
 };
+implementation[Matrix2x2_polymorphism].transpose = function transpose(m) {
+    return Matrix2x2.from_columns(...m.rows);
+};
 implementation[Number_polymorphism][Matrix2x3_polymorphism].add = function add(n, x) {
     return Matrix2x3.using_rows(...x.rows.map(v => implementation[Number_polymorphism][Vector3D_polymorphism].add(n, v)));
 };
@@ -12491,6 +12502,9 @@ implementation[Vector2D_polymorphism][Matrix2x3_polymorphism].mul = function mul
         implementation[Vector2D_polymorphism][Vector2D_polymorphism].dot(x, y.columns[1]),
         implementation[Vector2D_polymorphism][Vector2D_polymorphism].dot(x, y.columns[2])
     );
+};
+implementation[Matrix2x3_polymorphism].transpose = function transpose(m) {
+    return Matrix3x2.from_columns(...m.rows);
 };
 implementation[Number_polymorphism][Matrix2x4_polymorphism].add = function add(n, x) {
     return Matrix2x4.using_rows(...x.rows.map(v => implementation[Number_polymorphism][Vector4D_polymorphism].add(n, v)));
@@ -12572,6 +12586,9 @@ implementation[Vector2D_polymorphism][Matrix2x4_polymorphism].mul = function mul
         implementation[Vector2D_polymorphism][Vector2D_polymorphism].dot(x, y.columns[3])
     );
 };
+implementation[Matrix2x4_polymorphism].transpose = function transpose(m) {
+    return Matrix4x2.from_columns(...m.rows);
+};
 implementation[Number_polymorphism][Matrix3x2_polymorphism].add = function add(n, x) {
     return Matrix3x2.using_rows(...x.rows.map(v => implementation[Number_polymorphism][Vector2D_polymorphism].add(n, v)));
 };
@@ -12644,6 +12661,9 @@ implementation[Vector3D_polymorphism][Matrix3x2_polymorphism].mul = function mul
         implementation[Vector3D_polymorphism][Vector3D_polymorphism].dot(x, y.columns[0]),
         implementation[Vector3D_polymorphism][Vector3D_polymorphism].dot(x, y.columns[1])
     );
+};
+implementation[Matrix3x2_polymorphism].transpose = function transpose(m) {
+    return Matrix2x3.from_columns(...m.rows);
 };
 implementation[Number_polymorphism][Matrix3x3_polymorphism].add = function add(n, x) {
     return Matrix3x3.using_rows(...x.rows.map(v => implementation[Number_polymorphism][Vector3D_polymorphism].add(n, v)));
@@ -12727,6 +12747,9 @@ implementation[Vector3D_polymorphism][Matrix3x3_polymorphism].mul = function mul
         implementation[Vector3D_polymorphism][Vector3D_polymorphism].dot(x, y.columns[1]),
         implementation[Vector3D_polymorphism][Vector3D_polymorphism].dot(x, y.columns[2])
     );
+};
+implementation[Matrix3x3_polymorphism].transpose = function transpose(m) {
+    return Matrix3x3.from_columns(...m.rows);
 };
 implementation[Number_polymorphism][Matrix3x4_polymorphism].add = function add(n, x) {
     return Matrix3x4.using_rows(...x.rows.map(v => implementation[Number_polymorphism][Vector4D_polymorphism].add(n, v)));
@@ -12821,6 +12844,9 @@ implementation[Vector3D_polymorphism][Matrix3x4_polymorphism].mul = function mul
         implementation[Vector3D_polymorphism][Vector3D_polymorphism].dot(x, y.columns[3])
     );
 };
+implementation[Matrix3x4_polymorphism].transpose = function transpose(m) {
+    return Matrix4x3.from_columns(...m.rows);
+};
 implementation[Number_polymorphism][Matrix4x2_polymorphism].add = function add(n, x) {
     return Matrix4x2.using_rows(...x.rows.map(v => implementation[Number_polymorphism][Vector2D_polymorphism].add(n, v)));
 };
@@ -12900,6 +12926,9 @@ implementation[Vector4D_polymorphism][Matrix4x2_polymorphism].mul = function mul
         implementation[Vector4D_polymorphism][Vector4D_polymorphism].dot(x, y.columns[0]),
         implementation[Vector4D_polymorphism][Vector4D_polymorphism].dot(x, y.columns[1])
     );
+};
+implementation[Matrix4x2_polymorphism].transpose = function transpose(m) {
+    return Matrix2x4.from_columns(...m.rows);
 };
 implementation[Number_polymorphism][Matrix4x3_polymorphism].add = function add(n, x) {
     return Matrix4x3.using_rows(...x.rows.map(v => implementation[Number_polymorphism][Vector3D_polymorphism].add(n, v)));
@@ -12993,6 +13022,9 @@ implementation[Vector4D_polymorphism][Matrix4x3_polymorphism].mul = function mul
         implementation[Vector4D_polymorphism][Vector4D_polymorphism].dot(x, y.columns[1]),
         implementation[Vector4D_polymorphism][Vector4D_polymorphism].dot(x, y.columns[2])
     );
+};
+implementation[Matrix4x3_polymorphism].transpose = function transpose(m) {
+    return Matrix3x4.from_columns(...m.rows);
 };
 implementation[Number_polymorphism][Matrix4x4_polymorphism].add = function add(n, x) {
     return Matrix4x4.using_rows(...x.rows.map(v => implementation[Number_polymorphism][Vector4D_polymorphism].add(n, v)));
@@ -13099,6 +13131,9 @@ implementation[Vector4D_polymorphism][Matrix4x4_polymorphism].mul = function mul
         implementation[Vector4D_polymorphism][Vector4D_polymorphism].dot(x, y.columns[2]),
         implementation[Vector4D_polymorphism][Vector4D_polymorphism].dot(x, y.columns[3])
     );
+};
+implementation[Matrix4x4_polymorphism].transpose = function transpose(m) {
+    return Matrix4x4.from_columns(...m.rows);
 };
 
 implementation[Matrix2x2_polymorphism].determinant = function determinant(x) {
@@ -13275,12 +13310,33 @@ export function determinant(x) {
 export function inverse(x) {
     return (implementation[x?.[polymorphism] ?? polymorphism]?.inverse ?? throw_type_error("inverse", x))(x);
 }
+export function transpose(x) {
+    return (implementation[x?.[polymorphism] ?? polymorphism]?.transpose ?? throw_type_error("transpose", x))(x);
+}
 export function cross(x, y) {
     return (implementation[x?.[polymorphism] ?? polymorphism]?.[y?.[polymorphism] ?? polymorphism]?.cross ?? throw_type_error("cross", x, y))(x, y);
 }
 export function dot(x, y) {
     return (implementation[x?.[polymorphism] ?? polymorphism]?.[y?.[polymorphism] ?? polymorphism]?.dot ?? throw_type_error("dot", x, y))(x, y);
 }
+implementation[Vector2D_polymorphism][Number_polymorphism].hg_expand = function hg_expand(vector, value) {
+    return new Vector3D(vector, value);
+};
+implementation[Vector3D_polymorphism][Number_polymorphism].hg_expand = function hg_expand(vector, value) {
+    return new Vector4D(vector, value);
+};
+implementation[Vector3D_polymorphism].hg_collapse = function hg_collapse(vector, divide) {
+    if (divide) {
+        return div(vector.xy, vector.z);
+    }
+    return vector.xy;
+};
+implementation[Vector4D_polymorphism].hg_collapse = function hg_collapse(vector, divide) {
+    if (divide) {
+        return div(vector.xyz, vector.w);
+    }
+    return vector.xyz;
+};
 
 function throw_type_error(name, ...args) {
     throw new TypeError(`"${name}": no matching overloaded function found, capable of accepting [${args.map(get_type).join(', ')}]`);
@@ -13325,4 +13381,12 @@ export function radians_from(value) {
 
 export function degrees_from(value) {
     return value / Math.PI * 180;
+}
+
+export function hg_expand(vector, value = 1) {
+    return implementation[vector[polymorphism]][value[polymorphism]].hg_expand(vector, value);
+}
+
+export function hg_collapse(vector, divide = true) {
+    return implementation[vector[polymorphism]].hg_collapse(vector, divide);
 }
