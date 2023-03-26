@@ -1,3 +1,4 @@
+import '../../lib/math/formatter.js';
 import '../../lib/webgl-screen.js';
 import '../../lib/keyboard-mouse-control.js';
 import RaytraceScene from './scene.js';
