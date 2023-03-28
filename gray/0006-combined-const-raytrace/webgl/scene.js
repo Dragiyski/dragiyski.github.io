@@ -62,10 +62,10 @@ export class Scene extends OpenGLScene {
         const jobs = [
             loadShader('shader/compute-normal.vertex.glsl').then(source => (this.shader_source.compute_normal_vertex = source)),
             loadShader('shader/raytrace.fragment.glsl').then(source => (this.shader_source.raytrace_fragment = source)),
-            loadImage('scene/wall-color.png').then(image => (this.images.wall_color = image)),
-            loadImage('scene/wall-normal.png').then(image => (this.images.wall_normal = image)),
-            loadImage('scene/crate-color.jpg').then(image => (this.images.crate_color = image)),
-            loadImage('scene/crate-normal.jpg').then(image => (this.images.crate_normal = image))
+            loadImage('../../resources/wall/wall-color.png').then(image => (this.images.wall_color = image)),
+            loadImage('../../resources/wall/wall-normal.png').then(image => (this.images.wall_normal = image)),
+            loadImage('../../resources/crate/crate-color.jpg').then(image => (this.images.crate_color = image)),
+            loadImage('../../resources/crate/crate-normal.jpg').then(image => (this.images.crate_normal = image))
         ];
         return Promise.all(jobs);
     }

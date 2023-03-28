@@ -9,19 +9,19 @@ const math_formatter = {
         }
         for (let size = 2; size <= 4; ++size) {
             if (object instanceof Vector[size]) {
-                return vectorHeader(object, config);
+                return vectorHeader(object);
             }
         }
         for (let rows = 2; rows <= 4; ++rows) {
             for (let cols = 2; cols <= 4; ++cols) {
                 if (object instanceof Matrix[rows][cols]) {
-                    return matrixHeader(object, config);
+                    return matrixHeader(object);
                 }
             }
         }
         return null;
     },
-    hasBody(object, config) {
+    hasBody(object) {
         for (let size = 2; size <= 4; ++size) {
             if (object instanceof Vector[size]) {
                 return true;
@@ -55,7 +55,7 @@ const math_formatter = {
 
 window.devtoolsFormatters.push(math_formatter);
 
-function vectorHeader(object, config) {
+function vectorHeader(object) {
     return [
         'span', {},
         [
@@ -68,7 +68,7 @@ function vectorHeader(object, config) {
     ];
 }
 
-function matrixHeader(object, config) {
+function matrixHeader(object) {
     return [
         'span', {},
         [
@@ -132,27 +132,6 @@ function formatNumberList(...items) {
         children.pop();
     }
     return children;
-}
-
-function formatValue(value) {
-    if (value instanceof Array) {
-        return formatArray(value);
-    } else if (typeof value === 'number') {
-        return formatNumber(value);
-    } else {
-        return [];
-    }
-}
-
-function formatArray(value) {
-    const children = [];
-    value.forEach(item => {
-        children.push(...formatValue(item), ', ');
-    });
-    if (children.length > 0) {
-        children.pop();
-    }
-    return ['[', ...children, ']'];
 }
 
 function formatNumber(value) {
