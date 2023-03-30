@@ -1,0 +1,39 @@
+.joystick-container {
+    position: fixed;
+    width: 40vmin;
+    height: 40vmin;
+    bottom: 5vmin;
+    border-radius: 20vmin;
+    background-color: rgba(0, 0, 0, 0.5);
+    outline: 0.5vmin solid rgba(255, 255, 255, 0.8);
+    box-sizing: border-box;
+}
+
+.joystick-container .stick {
+    position: absolute;
+    width: 20vmin;
+    height: 20vmin;
+    border-radius: 10vmin;
+    background-color: rgba(255, 255, 255, 0.25);
+    background-position: 50% 50%;
+    background-size: 50% 50%;
+    background-repeat: no-repeat;
+    outline: 0.5vmin solid rgba(255, 255, 255, 0.4);
+    box-sizing: border-box;
+}
+
+.joystick-container.left {
+    left: 5vmin;
+}
+
+.joystick-container.left .stick {
+    background-image: url('../img/move-black.svg');
+}
+
+.joystick-container.right {
+    right: 5vmin;
+}
+
+.joystick-container.right .stick {
+    background-image: url('../img/rotate-black.svg');
+}

@@ -1,13 +1,13 @@
 import '../../lib/math/formatter.js';
 import '../../lib/webgl-screen.js';
 import '../../lib/keyboard-mouse-control.js';
+import '../../lib/touch-control.js';
 import RaytraceScene from './scene.js';
 import '../../lib/gl-screen.js';
 import { Vector3D, normalize, radians_from, sub } from '../../lib/math/index.js';
 
 async function main() {
     window.addEventListener('performance.frametime', onFrameTimeMeasure);
-    const camera_origin = new Vector3D(-2, 0, -3);
     const scene = new RaytraceScene({
         camera: {
             options: {
@@ -17,8 +17,20 @@ async function main() {
         }
     });
     const screen = document.getElementById('screen');
+    screen.paused = false;
     screen.scene = scene;
+    screen.passive = false;
     screen.addEventListener('click', onScreenMouseClick);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+}
+
+function onVisibilityChange() {
+    const screen = document.getElementById('screen');
+    if (document.visibilityState === 'visible') {
+        screen.passive = !!screen.paused;
+    } else {
+        screen.passive = true;
+    }
 }
 
 function onScreenMouseClick(event) {

@@ -1,11 +1,13 @@
 import { float32 } from '../../float.js';
-import { Matrix3x3, Vector3D, cross, mul, neg, normalize, sub, length, div, add } from '../../math/index.js';
+import { Matrix3x3, Vector3D, cross, mul, neg, normalize, sub, length, div, add, Vector2D } from '../../math/index.js';
 import WebGLScene from '../../webgl-scene.js';
 
 const events = {
     pointerLockChange: Symbol('pointerLockChange'),
     controlMouseMove: Symbol('controlMouseMove'),
-    controlKeyboardMove: Symbol('controlKeyboardMove')
+    controlKeyboardMove: Symbol('controlKeyboardMove'),
+    joystickMove: Symbol('joystickMove'),
+    joystickRotate: Symbol('joystickRotate')
 };
 
 export default class FirstPersonScene extends WebGLScene {
@@ -15,6 +17,8 @@ export default class FirstPersonScene extends WebGLScene {
                 moveSpeed = 1,
                 mouseSpeedX = 0.5,
                 mouseSpeedY = 0.5,
+                rotateSpeedX = 0.1,
+                rotateSpeedY = 0.1,
                 worldUp = new Vector3D(0, 0, 1),
                 worldDepth = new Vector3D(0, 1, 0),
                 fieldOfView = 60
@@ -36,6 +40,8 @@ export default class FirstPersonScene extends WebGLScene {
                 moveSpeed,
                 mouseSpeedX,
                 mouseSpeedY,
+                rotateSpeedX,
+                rotateSpeedY,
                 worldUp,
                 worldDepth,
                 fieldOfView,
@@ -48,6 +54,7 @@ export default class FirstPersonScene extends WebGLScene {
                 right,
                 timestamp: null,
                 moveVelocity: new Vector3D(0, 0, 0),
+                rotateVelocity: new Vector2D(0, 0),
                 yaw,
                 pitch
             },
@@ -58,25 +65,11 @@ export default class FirstPersonScene extends WebGLScene {
 
     #pointerLockChange(gl, context) {
         if (document.pointerLockElement === gl.screen) {
-            this.#resume(gl, context);
+            gl.screen.addEventListener('control.mouse.move', context[events.controlMouseMove], { passive: true });
+            gl.screen.addEventListener('control.keyboard.move', context[events.controlKeyboardMove], { passive: true });
         } else {
-            this.#pause(gl, context);
-        }
-    }
-
-    #resume(gl, context) {
-        gl.screen.addEventListener('control.mouse.move', context[events.controlMouseMove], { passive: true });
-        gl.screen.addEventListener('control.keyboard.move', context[events.controlKeyboardMove], { passive: true });
-        this.camera.timestamp = performance.now();
-        gl.screen.passive = false;
-    }
-
-    #pause(gl, context, freeze = true) {
-        gl.screen.removeEventListener('control.mouse.move', context[events.controlMouseMove]);
-        gl.screen.removeEventListener('control.keyboard.move', context[events.controlKeyboardMove]);
-        this.camera.timestamp = null;
-        if (freeze) {
-            gl.screen.passive = true;
+            gl.screen.removeEventListener('control.mouse.move', context[events.controlMouseMove]);
+            gl.screen.removeEventListener('control.keyboard.move', context[events.controlKeyboardMove]);
         }
     }
 
@@ -98,7 +91,6 @@ export default class FirstPersonScene extends WebGLScene {
     #controlMouseMove(gl, context, event) {
         this.camera.state.yaw = (Math.PI * 2 + this.camera.state.yaw + event.deltaYaw * this.camera.options.mouseSpeedX) % (Math.PI * 2);
         this.camera.state.pitch = Math.max(-Math.PI * 0.5, Math.min(Math.PI * 0.5, this.camera.state.pitch - event.deltaPitch * this.camera.options.mouseSpeedY));
-        this.#computeView();
     }
 
     #controlKeyboardMove(gl, context, event) {
@@ -106,12 +98,28 @@ export default class FirstPersonScene extends WebGLScene {
         const kv_length = length(keyboard_vector);
         if (float32.isEqual(kv_length, 0)) {
             this.camera.state.moveVelocity = new Vector3D(0, 0, 0);
-            this.camera.state.timestamp = null;
         } else {
             // Same as normalize(), but the length is already known;
             this.camera.state.moveVelocity = div(keyboard_vector, kv_length);
-            this.camera.state.timestamp = performance.now();
         }
+    }
+
+    #joystickMove(gl, context, event) {
+        let position = event.position;
+        if (length(event.position) < 0.001) {
+            position = new Vector2D(0, 0);
+        }
+        this.camera.state.moveVelocity.x = this.camera.options.moveSpeed * position.x;
+        this.camera.state.moveVelocity.z = this.camera.options.moveSpeed * -position.y;
+    }
+
+    #joystickRotate(gl, context, event) {
+        let position = event.position;
+        if (length(event.position) < 0.001) {
+            position = new Vector2D(0, 0);
+        }
+        this.camera.state.rotateVelocity.x = this.camera.options.rotateSpeedX * Math.PI * position.x;
+        this.camera.state.rotateVelocity.y = this.camera.options.rotateSpeedY * Math.PI * position.y;
     }
 
     /**
@@ -128,6 +136,8 @@ export default class FirstPersonScene extends WebGLScene {
         context[events.pointerLockChange] = this.#pointerLockChange.bind(this, gl, context);
         context[events.controlMouseMove] = this.#controlMouseMove.bind(this, gl, context);
         context[events.controlKeyboardMove] = this.#controlKeyboardMove.bind(this, gl, context);
+        context[events.joystickMove] = this.#joystickMove.bind(this, gl, context);
+        context[events.joystickRotate] = this.#joystickRotate.bind(this, gl, context);
     }
 
     /**
@@ -138,9 +148,8 @@ export default class FirstPersonScene extends WebGLScene {
         const document = gl.screen.ownerDocument;
         document.addEventListener('pointerlockchange', context[events.pointerLockChange], { passive: true });
 
-        if (document.pointerLockElement === gl.screen) {
-            this.#resume(gl, context);
-        }
+        window.addEventListener('joystick-move', context[events.joystickMove]);
+        window.addEventListener('joystick-rotate', context[events.joystickRotate]);
     }
 
     /**
@@ -150,7 +159,9 @@ export default class FirstPersonScene extends WebGLScene {
     onStop(gl, context) {
         const document = gl.screen.ownerDocument;
         document.removeEventListener('pointerlockchange', context.eventPointerLockChange);
-        this.#pause(gl, context, false);
+
+        window.removeEventListener('joystick-move', context[events.joystickMove]);
+        window.removeEventListener('joystick-rotate', context[events.joystickRotate]);
     }
 
     /**
@@ -169,12 +180,17 @@ export default class FirstPersonScene extends WebGLScene {
             const timestamp = performance.now();
             const time_delta = (timestamp - this.camera.state.timestamp) * 1e-3;
             this.camera.state.timestamp = timestamp;
+            this.camera.state.yaw = (Math.PI * 2 + this.camera.state.yaw + time_delta * this.camera.state.rotateVelocity.x) % (Math.PI * 2);
+            this.camera.state.pitch = Math.max(-Math.PI * 0.5, Math.min(Math.PI * 0.5, this.camera.state.pitch - time_delta * this.camera.state.rotateVelocity.y));
+            this.#computeView();
             const move_offset = mul(this.camera.options.moveSpeed * time_delta, this.camera.state.moveVelocity);
             let move_vector = new Vector3D(0, 0, 0);
             move_vector = add(move_vector, mul(move_offset[0], this.camera.state.right));
             move_vector = add(move_vector, mul(move_offset[1], this.camera.state.up));
             move_vector = add(move_vector, mul(move_offset[2], this.camera.state.forward));
             this.camera.state.origin = add(this.camera.state.origin, move_vector);
+        } else {
+            this.camera.state.timestamp = performance.now();
         }
         const field_of_view = (this.camera.options.fieldOfView * 0.5) / 180 * Math.PI;
         const diagonal_size = Math.tan(field_of_view);
