@@ -13203,121 +13203,121 @@ implementation[Matrix4x4_polymorphism].inverse = function inverse(x) {
 };
 
 export function add(x, y) {
-    return (implementation[x?.[polymorphism] ?? polymorphism]?.[y?.[polymorphism] ?? polymorphism]?.add ?? throw_type_error("add", x, y))(x, y);
+    return (implementation[x?.[polymorphism] ?? polymorphism]?.[y?.[polymorphism] ?? polymorphism]?.add ?? throw_type_error('add', x, y))(x, y);
 }
 export function sub(x, y) {
-    return (implementation[x?.[polymorphism] ?? polymorphism]?.[y?.[polymorphism] ?? polymorphism]?.sub ?? throw_type_error("sub", x, y))(x, y);
+    return (implementation[x?.[polymorphism] ?? polymorphism]?.[y?.[polymorphism] ?? polymorphism]?.sub ?? throw_type_error('sub', x, y))(x, y);
 }
 export function mul(x, y) {
-    return (implementation[x?.[polymorphism] ?? polymorphism]?.[y?.[polymorphism] ?? polymorphism]?.mul ?? throw_type_error("mul", x, y))(x, y);
+    return (implementation[x?.[polymorphism] ?? polymorphism]?.[y?.[polymorphism] ?? polymorphism]?.mul ?? throw_type_error('mul', x, y))(x, y);
 }
 export function div(x, y) {
-    return (implementation[x?.[polymorphism] ?? polymorphism]?.[y?.[polymorphism] ?? polymorphism]?.div ?? throw_type_error("div", x, y))(x, y);
+    return (implementation[x?.[polymorphism] ?? polymorphism]?.[y?.[polymorphism] ?? polymorphism]?.div ?? throw_type_error('div', x, y))(x, y);
 }
 export function mod(x, y) {
-    return (implementation[x?.[polymorphism] ?? polymorphism]?.[y?.[polymorphism] ?? polymorphism]?.mod ?? throw_type_error("mod", x, y))(x, y);
+    return (implementation[x?.[polymorphism] ?? polymorphism]?.[y?.[polymorphism] ?? polymorphism]?.mod ?? throw_type_error('mod', x, y))(x, y);
 }
 export function abs(x) {
-    return (implementation[x?.[polymorphism] ?? polymorphism]?.abs ?? throw_type_error("abs", x))(x);
+    return (implementation[x?.[polymorphism] ?? polymorphism]?.abs ?? throw_type_error('abs', x))(x);
 }
 export function acos(x) {
-    return (implementation[x?.[polymorphism] ?? polymorphism]?.acos ?? throw_type_error("acos", x))(x);
+    return (implementation[x?.[polymorphism] ?? polymorphism]?.acos ?? throw_type_error('acos', x))(x);
 }
 export function acosh(x) {
-    return (implementation[x?.[polymorphism] ?? polymorphism]?.acosh ?? throw_type_error("acosh", x))(x);
+    return (implementation[x?.[polymorphism] ?? polymorphism]?.acosh ?? throw_type_error('acosh', x))(x);
 }
 export function asin(x) {
-    return (implementation[x?.[polymorphism] ?? polymorphism]?.asin ?? throw_type_error("asin", x))(x);
+    return (implementation[x?.[polymorphism] ?? polymorphism]?.asin ?? throw_type_error('asin', x))(x);
 }
 export function asinh(x) {
-    return (implementation[x?.[polymorphism] ?? polymorphism]?.asinh ?? throw_type_error("asinh", x))(x);
+    return (implementation[x?.[polymorphism] ?? polymorphism]?.asinh ?? throw_type_error('asinh', x))(x);
 }
 export function atan(x) {
-    return (implementation[x?.[polymorphism] ?? polymorphism]?.atan ?? throw_type_error("atan", x))(x);
+    return (implementation[x?.[polymorphism] ?? polymorphism]?.atan ?? throw_type_error('atan', x))(x);
 }
 export function atanh(x) {
-    return (implementation[x?.[polymorphism] ?? polymorphism]?.atanh ?? throw_type_error("atanh", x))(x);
+    return (implementation[x?.[polymorphism] ?? polymorphism]?.atanh ?? throw_type_error('atanh', x))(x);
 }
 export function cbrt(x) {
-    return (implementation[x?.[polymorphism] ?? polymorphism]?.cbrt ?? throw_type_error("cbrt", x))(x);
+    return (implementation[x?.[polymorphism] ?? polymorphism]?.cbrt ?? throw_type_error('cbrt', x))(x);
 }
 export function ceil(x) {
-    return (implementation[x?.[polymorphism] ?? polymorphism]?.ceil ?? throw_type_error("ceil", x))(x);
+    return (implementation[x?.[polymorphism] ?? polymorphism]?.ceil ?? throw_type_error('ceil', x))(x);
 }
 export function cos(x) {
-    return (implementation[x?.[polymorphism] ?? polymorphism]?.cos ?? throw_type_error("cos", x))(x);
+    return (implementation[x?.[polymorphism] ?? polymorphism]?.cos ?? throw_type_error('cos', x))(x);
 }
 export function cosh(x) {
-    return (implementation[x?.[polymorphism] ?? polymorphism]?.cosh ?? throw_type_error("cosh", x))(x);
+    return (implementation[x?.[polymorphism] ?? polymorphism]?.cosh ?? throw_type_error('cosh', x))(x);
 }
 export function exp(x) {
-    return (implementation[x?.[polymorphism] ?? polymorphism]?.exp ?? throw_type_error("exp", x))(x);
+    return (implementation[x?.[polymorphism] ?? polymorphism]?.exp ?? throw_type_error('exp', x))(x);
 }
 export function expm1(x) {
-    return (implementation[x?.[polymorphism] ?? polymorphism]?.expm1 ?? throw_type_error("expm1", x))(x);
+    return (implementation[x?.[polymorphism] ?? polymorphism]?.expm1 ?? throw_type_error('expm1', x))(x);
 }
 export function floor(x) {
-    return (implementation[x?.[polymorphism] ?? polymorphism]?.floor ?? throw_type_error("floor", x))(x);
+    return (implementation[x?.[polymorphism] ?? polymorphism]?.floor ?? throw_type_error('floor', x))(x);
 }
 export function log(x) {
-    return (implementation[x?.[polymorphism] ?? polymorphism]?.log ?? throw_type_error("log", x))(x);
+    return (implementation[x?.[polymorphism] ?? polymorphism]?.log ?? throw_type_error('log', x))(x);
 }
 export function log10(x) {
-    return (implementation[x?.[polymorphism] ?? polymorphism]?.log10 ?? throw_type_error("log10", x))(x);
+    return (implementation[x?.[polymorphism] ?? polymorphism]?.log10 ?? throw_type_error('log10', x))(x);
 }
 export function log1p(x) {
-    return (implementation[x?.[polymorphism] ?? polymorphism]?.log1p ?? throw_type_error("log1p", x))(x);
+    return (implementation[x?.[polymorphism] ?? polymorphism]?.log1p ?? throw_type_error('log1p', x))(x);
 }
 export function log2(x) {
-    return (implementation[x?.[polymorphism] ?? polymorphism]?.log2 ?? throw_type_error("log2", x))(x);
+    return (implementation[x?.[polymorphism] ?? polymorphism]?.log2 ?? throw_type_error('log2', x))(x);
 }
 export function round(x) {
-    return (implementation[x?.[polymorphism] ?? polymorphism]?.round ?? throw_type_error("round", x))(x);
+    return (implementation[x?.[polymorphism] ?? polymorphism]?.round ?? throw_type_error('round', x))(x);
 }
 export function sign(x) {
-    return (implementation[x?.[polymorphism] ?? polymorphism]?.sign ?? throw_type_error("sign", x))(x);
+    return (implementation[x?.[polymorphism] ?? polymorphism]?.sign ?? throw_type_error('sign', x))(x);
 }
 export function sin(x) {
-    return (implementation[x?.[polymorphism] ?? polymorphism]?.sin ?? throw_type_error("sin", x))(x);
+    return (implementation[x?.[polymorphism] ?? polymorphism]?.sin ?? throw_type_error('sin', x))(x);
 }
 export function sinh(x) {
-    return (implementation[x?.[polymorphism] ?? polymorphism]?.sinh ?? throw_type_error("sinh", x))(x);
+    return (implementation[x?.[polymorphism] ?? polymorphism]?.sinh ?? throw_type_error('sinh', x))(x);
 }
 export function sqrt(x) {
-    return (implementation[x?.[polymorphism] ?? polymorphism]?.sqrt ?? throw_type_error("sqrt", x))(x);
+    return (implementation[x?.[polymorphism] ?? polymorphism]?.sqrt ?? throw_type_error('sqrt', x))(x);
 }
 export function tan(x) {
-    return (implementation[x?.[polymorphism] ?? polymorphism]?.tan ?? throw_type_error("tan", x))(x);
+    return (implementation[x?.[polymorphism] ?? polymorphism]?.tan ?? throw_type_error('tan', x))(x);
 }
 export function tanh(x) {
-    return (implementation[x?.[polymorphism] ?? polymorphism]?.tanh ?? throw_type_error("tanh", x))(x);
+    return (implementation[x?.[polymorphism] ?? polymorphism]?.tanh ?? throw_type_error('tanh', x))(x);
 }
 export function trunc(x) {
-    return (implementation[x?.[polymorphism] ?? polymorphism]?.trunc ?? throw_type_error("trunc", x))(x);
+    return (implementation[x?.[polymorphism] ?? polymorphism]?.trunc ?? throw_type_error('trunc', x))(x);
 }
 export function neg(x) {
-    return (implementation[x?.[polymorphism] ?? polymorphism]?.neg ?? throw_type_error("neg", x))(x);
+    return (implementation[x?.[polymorphism] ?? polymorphism]?.neg ?? throw_type_error('neg', x))(x);
 }
 export function length(x) {
-    return (implementation[x?.[polymorphism] ?? polymorphism]?.length ?? throw_type_error("length", x))(x);
+    return (implementation[x?.[polymorphism] ?? polymorphism]?.length ?? throw_type_error('length', x))(x);
 }
 export function normalize(x) {
-    return (implementation[x?.[polymorphism] ?? polymorphism]?.normalize ?? throw_type_error("normalize", x))(x);
+    return (implementation[x?.[polymorphism] ?? polymorphism]?.normalize ?? throw_type_error('normalize', x))(x);
 }
 export function determinant(x) {
-    return (implementation[x?.[polymorphism] ?? polymorphism]?.determinant ?? throw_type_error("determinant", x))(x);
+    return (implementation[x?.[polymorphism] ?? polymorphism]?.determinant ?? throw_type_error('determinant', x))(x);
 }
 export function inverse(x) {
-    return (implementation[x?.[polymorphism] ?? polymorphism]?.inverse ?? throw_type_error("inverse", x))(x);
+    return (implementation[x?.[polymorphism] ?? polymorphism]?.inverse ?? throw_type_error('inverse', x))(x);
 }
 export function transpose(x) {
-    return (implementation[x?.[polymorphism] ?? polymorphism]?.transpose ?? throw_type_error("transpose", x))(x);
+    return (implementation[x?.[polymorphism] ?? polymorphism]?.transpose ?? throw_type_error('transpose', x))(x);
 }
 export function cross(x, y) {
-    return (implementation[x?.[polymorphism] ?? polymorphism]?.[y?.[polymorphism] ?? polymorphism]?.cross ?? throw_type_error("cross", x, y))(x, y);
+    return (implementation[x?.[polymorphism] ?? polymorphism]?.[y?.[polymorphism] ?? polymorphism]?.cross ?? throw_type_error('cross', x, y))(x, y);
 }
 export function dot(x, y) {
-    return (implementation[x?.[polymorphism] ?? polymorphism]?.[y?.[polymorphism] ?? polymorphism]?.dot ?? throw_type_error("dot", x, y))(x, y);
+    return (implementation[x?.[polymorphism] ?? polymorphism]?.[y?.[polymorphism] ?? polymorphism]?.dot ?? throw_type_error('dot', x, y))(x, y);
 }
 implementation[Vector2D_polymorphism][Number_polymorphism].hg_expand = function hg_expand(vector, value) {
     return new Vector3D(vector, value);
