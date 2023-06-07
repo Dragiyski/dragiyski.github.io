@@ -1,5 +1,5 @@
 import '../lib/math/formatter.js';
-import { Vector3D, add, cross, mul, normalize, sub, limits as NumberLimits } from '../lib/math/index.js';
+import { Vector3D, add, cross, mul, normalize, sub, limits as NumberLimits, length, limits } from '../lib/math/index.js';
 import { loadBinaryScene } from '../lib/webgpu/raytrace-scene.js';
 
 if (document.readyState !== 'complete') {
@@ -36,7 +36,7 @@ function unload() {
 }
 
 async function main() {
-    const url = new URL('../resources/wooden-table/instructions.bin', import.meta.url);
+    const url = window.raytrace_model_url;
     const adapter = await navigator.gpu.requestAdapter({
         powerPreference: 'high-performance'
     });
@@ -78,16 +78,23 @@ async function main() {
         const screenCenter = Vector3D.using(new Float32Array(buffer, 32, 3));
         const screenRight = Vector3D.using(new Float32Array(buffer, 48, 3));
         const screenUp = Vector3D.using(new Float32Array(buffer, 64, 3));
-        cameraOrigin.xyz = [0.7, 0.7, 0.9];
-        const cameraForward = normalize(sub(Vector3D.from([0, 0, 0]), cameraOrigin));
+        cameraOrigin.xyz = window.camera_origin;
+        const cameraForward = normalize(sub(Vector3D.from(window.camera_target), cameraOrigin));
         add(cameraOrigin, cameraForward).into(screenCenter);
         const fieldOfView = ((60 / 2) / 180) * Math.PI;
         const aspectRatio = imageSize.width / imageSize.height;
         const diagonalSize = Math.tan(fieldOfView);
         const worldHalfScreenHeight = diagonalSize / Math.sqrt(1 + aspectRatio * aspectRatio);
         const worldHalfScreenWidth = aspectRatio * worldHalfScreenHeight;
-        const worldScreenRightNormal = normalize(cross(cameraForward, Vector3D.from([0, 0, 1]))); // Z = up (note: it is division by 0 if looking exactly up and exactly down)
-        const worldScreenUpNormal = cross(cameraForward, worldScreenRightNormal);
+        // Z = up (note: it is division by 0 if looking exactly up and exactly down)
+        let worldScreenRightNormal = cross(cameraForward, Vector3D.from([0, 0, 1]));
+        let worldScreenUpNormal;
+        if (length(worldScreenRightNormal) < limits.float32.epsilon) {
+            worldScreenUpNormal = cross(cameraForward, Vector3D.from([1, 0, 0]));
+        } else {
+            worldScreenRightNormal = normalize(worldScreenRightNormal);
+            worldScreenUpNormal = cross(cameraForward, worldScreenRightNormal);
+        }
         mul(worldHalfScreenWidth, worldScreenRightNormal).into(screenRight);
         mul(worldHalfScreenWidth, worldScreenUpNormal).into(screenUp);
         uniformBuffer.unmap();
@@ -316,4 +323,8 @@ async function main() {
     let ms_frac = '000000' + (raytraceTime % 1000000n).toString(10);
     ms_frac = ms_frac.substring(ms_frac.length - 6);
     console.log(`Raytrace Time: ${ms_int}.${ms_frac}ms`);
+    const debug_element = document.getElementById('debug');
+    if (debug_element != null) {
+        debug_element.textContent = `${ms_int}.${ms_frac}ms`;
+    }
 }

@@ -51,8 +51,14 @@
                 padding: 1em;
             }
         </style>
+        <script type="text/javascript">
+            window.raytrace_model_url = new URL('resources/wooden-table/instructions.bin', document.baseURI);
+            window.camera_origin = [2.0, -2.0, 1.25];
+            window.camera_target = [0, 0, 0.25];
+        </script>
         <script type="module" src="raytracer/main.js" defer="defer"></script>
     </head>
     <body>
+        <div class="debug-info" id="debug"></div>
     </body>
 </html>

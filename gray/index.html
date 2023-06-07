@@ -31,11 +31,16 @@
                 border: 1px solid #ccc;
                 padding: 0.4em;
             }
+
+            .metric-cell {
+                white-space: nowrap;
+            }
         </style>
     </head>
     <body>
         <main>
-            <table border="0" class="content-table">
+            <h1>Raytracing experiments</h1>
+            <table class="content-table">
                 <thead>
                     <tr>
                         <th style="width: 100%;">Scene</th>
@@ -108,6 +113,37 @@
                         <td>Scene 13: Transformed cube</td>
                         <td><a href="0013-transform-cube/webgl" target="_blank">WebGL2</a></td>
                         <td></td>
+                    </tr>
+                </tbody>
+            </table>
+            <h1>Raytracing index experiment (WebGPU only)</h1>
+            <table class="content-table">
+                <thead>
+                    <tr>
+                        <th style="width: 100%;">Scene</th>
+                        <th>Vertices</th>
+                        <th>Triangles</th>
+                        <th>Size (B)</th>
+                        <th>Size</th>
+                        <th>View</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Model 1: Wooden table</td>
+                        <td class="metric-cell">481</td>
+                        <td class="metric-cell">550</td>
+                        <td class="metric-cell">67976</td>
+                        <td class="metric-cell">66.4 KiB</td>
+                        <td><a href="raytrace-table.html" target="_blank">View</a></td>
+                    </tr>
+                    <tr>
+                        <td>Model 2: Locomotive (High-Detail)</td>
+                        <td class="metric-cell">1160142</td>
+                        <td class="metric-cell">2278304</td>
+                        <td class="metric-cell">241528344</td>
+                        <td class="metric-cell">230.3 MiB</td>
+                        <td><a href="raytrace-locomotive.html" target="_blank">View</a></td>
                     </tr>
                 </tbody>
             </table>
