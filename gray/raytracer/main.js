@@ -61,7 +61,7 @@ async function main() {
         Math.ceil(imageSize.width / workgroupSize.x),
         Math.ceil(imageSize.height / workgroupSize.y)
     ];
-    const binary = await (await fetch(url)).arrayBuffer();
+    const binary = await (await fetch(url, { cache: 'force-cache' })).arrayBuffer();
     const sceneData = await loadBinaryScene(device, binary);
     const uniformBuffer = device.createBuffer({
         size: Math.ceil(80 / device.limits.minUniformBufferOffsetAlignment) * device.limits.minUniformBufferOffsetAlignment,
