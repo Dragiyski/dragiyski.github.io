@@ -302,11 +302,14 @@ async function main() {
     device.queue.submit([commandBuffer]);
     await device.queue.onSubmittedWorkDone();
     await readBuffer.mapAsync(GPUMapMode.READ);
-    await measureBufferRead.mapAsync(GPUMapMode.READ);
+    let raytraceTime = null;
+    if (measureBufferRead != null) {
+        await measureBufferRead.mapAsync(GPUMapMode.READ);
+        const measureBufferData = measureBufferRead.getMappedRange();
+        const measureBufferDataView = new DataView(measureBufferData);
+        raytraceTime = measureBufferDataView.getBigUint64(8, true) - measureBufferDataView.getBigUint64(0, true);
+    }
     const readBufferData = readBuffer.getMappedRange();
-    const measureBufferData = measureBufferRead.getMappedRange();
-    const measureBufferDataView = new DataView(measureBufferData);
-    const raytraceTime = measureBufferDataView.getBigUint64(8, true) - measureBufferDataView.getBigUint64(0, true);
     const imageData = new ImageData(imageSize.width, imageSize.height);
     const rowByteLength = Math.ceil(imageSize.width * 4 / 256) * 256;
     for (let y = 0; y < imageSize.height; ++y) {
@@ -319,12 +322,14 @@ async function main() {
     canvas.height = imageSize.height;
     context.drawImage(imageBitmap, 0, 0);
     document.body.appendChild(canvas);
-    const ms_int = Number(raytraceTime / 1000000n);
-    let ms_frac = '000000' + (raytraceTime % 1000000n).toString(10);
-    ms_frac = ms_frac.substring(ms_frac.length - 6);
-    console.log(`Raytrace Time: ${ms_int}.${ms_frac}ms`);
-    const debug_element = document.getElementById('debug');
-    if (debug_element != null) {
-        debug_element.textContent = `${ms_int}.${ms_frac}ms`;
+    if (raytraceTime != null) {
+        const ms_int = Number(raytraceTime / 1000000n);
+        let ms_frac = '000000' + (raytraceTime % 1000000n).toString(10);
+        ms_frac = ms_frac.substring(ms_frac.length - 6);
+        console.log(`Raytrace Time: ${ms_int}.${ms_frac}ms`);
+        const debug_element = document.getElementById('debug');
+        if (debug_element != null) {
+            debug_element.textContent = `${ms_int}.${ms_frac}ms`;
+        }
     }
 }
