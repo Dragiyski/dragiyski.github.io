@@ -1,0 +1,399 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<title>DX Ball</title>
+<style type="text/css">
+body, p, td, tr, div, table {
+	margin:0;
+	padding:0;
+}
+</style>
+<script type="text/javascript">
+GameField = Array("left", "top", "right", "bottom", "width", "height");
+Board = Array("left", "top", "right", "bottom", "width", "height");
+Ball = Array("left", "top", "right", "bottom", "width", "height");
+Element = Array(98);
+ElementLeft = 98;
+for(Element_i=0; Element_i<98; Element_i++)
+{
+	Element[Element_i] = Array("left", "top", "right", "bottom", "width", "height");
+}
+Ball_Attach = true;
+Ball_Speed_X = -1;
+Ball_Speed_Y = -1;
+Multiplier = 2;
+Score = 0;
+Boards = 3;
+FrameTimerID = 0;
+LastMouseX = 0;
+function PageLoad()
+{
+	//First Find The ABSOLUTE Value of the Main Elements
+	GameField["left"] = document.getElementById("MainTable").offsetLeft;
+	GameField["top"] = document.getElementById("MainTable").offsetTop;
+	GameField["width"] = document.getElementById("GameBody").clientWidth;
+	GameField["height"] = document.getElementById("GameBody").clientHeight;
+	GameField["right"] = GameField["left"]+GameField["width"];
+	GameField["bottom"] = GameField["top"]+GameField["height"];
+	Board["left"] = document.getElementById("Board").offsetLeft;
+	Board["top"] = document.getElementById("Board").offsetTop;
+	Board["width"] = document.getElementById("Board").clientWidth;
+	Board["height"] = document.getElementById("Board").clientHeight;
+	Board["right"] = Board["left"]+Board["width"];
+	Board["bottom"] = Board["top"]+Board["height"];
+	Ball["left"] = document.getElementById("Ball").offsetLeft;
+	Ball["top"] = document.getElementById("Ball").offsetTop;
+	Ball["width"] = document.getElementById("Ball").clientWidth;
+	Ball["height"] = document.getElementById("Ball").clientHeight;
+	Ball["right"] = Ball["left"]+Ball["width"];
+	Ball["bottom"] = Ball["top"]+Ball["height"];
+	//Change POSITION to ABSOLUTE and Normalize
+	document.getElementById("Board").style.position = "absolute";
+	document.getElementById("Ball").style.position = "absolute";
+	document.getElementById("Board").style.left = Board["left"]+"px";
+	document.getElementById("Board").style.top = Board["top"]+"px";
+	document.getElementById("Ball").style.left = Ball["left"]+"px";
+	document.getElementById("Ball").style.top = Ball["top"]+"px";
+	var elpos_x = GameField["left"]+25;
+	var elpos_y = GameField["top"]+30;
+	var elcount = 0;
+	var elholder=null;
+	for(elcount=1; elcount<=Element.length; elcount++)
+	{
+		elholder = document.createElement("div");
+		elholder.setAttribute("id", "p"+(elcount-1));
+		elholder.style.backgroundColor = "#009900";
+		elholder.style.overflow = "visible";
+		elholder.style.position = "absolute";
+		elholder.style.width="30px";
+		elholder.style.height="15px";
+		elholder.style.left = elpos_x+"px";
+		elholder.style.top = elpos_y+"px";
+		elholder.innerHTML = "<img src=\"tuhla.png\" alt=\"[PARTICLE]\" />";
+		Element[elcount-1]["left"] = elpos_x;
+		Element[elcount-1]["top"] = elpos_y;
+		Element[elcount-1]["width"] = 30;
+		Element[elcount-1]["height"] = 15;
+		Element[elcount-1]["right"] = elpos_x+30;
+		Element[elcount-1]["bottom"] = elpos_y+15;
+		if((elcount%14==0)&&(elcount!=0))
+		{
+			elpos_x = GameField["left"]+25;
+			elpos_y += 20;
+		}
+		else
+			elpos_x += 40;
+		document.getElementById("GameBody").insertBefore(elholder, null);
+	}
+}
+mb_first=true;
+function MoveBoard(e)
+{
+	if(mb_first)
+	{
+		LastMouseX = e.clientX;
+		mb_first = false;
+		return;
+	}
+	var MoveBy = e.clientX-LastMouseX;
+	LastMouseX = e.clientX;
+	if((Board["left"]+MoveBy>GameField["left"])&&(Board["right"]+MoveBy<GameField["right"]))
+	{
+		Board["left"] = Board["left"]+MoveBy;
+		Board["right"] = Board["left"]+Board["width"]
+		document.getElementById("Board").style.left = Board["left"]+"px";
+		if(Ball_Attach)
+		{
+			Ball["left"] = Board["left"]+Ball["width"];
+			Ball["right"] = Ball["left"]+Ball["width"];
+			document.getElementById("Ball").style.left = Ball["left"]+"px";
+		}
+	}
+}
+function Collusion(Rect1, Rect2)
+{
+	/*
+	0 - No Collusion
+	1 - Left Collusion
+	2 - Top Collusion
+	3 - Right Collusion
+	4 - Bottom Collusion
+	5 - TopLeft Collusion
+	6 - TopRight Collusion
+	7 - BottomLeft Collusion
+	8 - BottomRight Collusion
+	*/
+
+	//Check Top Left
+	if((Rect1["left"]>Rect2["left"])&&(Rect1["left"]<Rect2["right"])&&(Rect1["top"]>Rect2["top"])&&(Rect1["top"]<Rect2["bottom"]))
+	{
+		if((Rect2["right"]-Rect1["left"])>(Rect2["bottom"]-Rect1["top"]))
+		{
+			return 2;
+		}
+		if((Rect2["right"]-Rect1["left"])<(Rect2["bottom"]-Rect1["top"]))
+		{
+			return 1;
+		}
+		if((Rect2["right"]-Rect1["left"])==(Rect2["bottom"]-Rect1["top"]))
+		{
+			return 5;
+		}
+	}
+	//Check Top Right
+	if((Rect1["right"]>Rect2["left"])&&(Rect1["right"]<Rect2["right"])&&(Rect1["top"]>Rect2["top"])&&(Rect1["top"]<Rect2["bottom"]))
+	{
+		if((Rect1["right"]-Rect2["left"])<(Rect2["bottom"]-Rect1["top"]))
+		{
+			return 3;
+		}
+		if((Rect1["right"]-Rect2["left"])>(Rect2["bottom"]-Rect1["top"]))
+		{
+			return 2;
+		}
+		if((Rect1["right"]-Rect2["left"])==(Rect2["bottom"]-Rect1["top"]))
+		{
+			return 6;
+		}
+	}
+	//Check Bottom Left
+	if((Rect1["left"]>Rect2["left"])&&(Rect1["left"]<Rect2["right"])&&(Rect1["bottom"]>Rect2["top"])&&(Rect1["bottom"]<Rect2["bottom"]))
+	{
+		if((Rect2["right"]-Rect1["left"])<(Rect1["bottom"]-Rect2["top"]))
+		{
+			return 1;
+		}
+		if((Rect2["right"]-Rect1["left"])>(Rect1["bottom"]-Rect2["top"]))
+		{
+			return 4;
+		}
+		if((Rect2["right"]-Rect1["left"])==(Rect1["bottom"]-Rect2["top"]))
+		{
+			return 7;
+		}
+	}
+	//Check Bottom Right
+	if((Rect1["right"]>Rect2["left"])&&(Rect1["right"]<Rect2["right"])&&(Rect1["bottom"]>Rect2["top"])&&(Rect1["bottom"]<Rect2["bottom"]))
+	{
+		if((Rect1["right"]-Rect2["left"])<(Rect1["bottom"]-Rect2["top"]))
+		{
+			return 3;
+		}
+		if((Rect1["right"]-Rect2["left"])>(Rect1["bottom"]-Rect2["top"]))
+		{
+			return 4;
+		}
+		if((Rect1["right"]-Rect2["left"])==(Rect1["bottom"]-Rect2["top"]))
+		{
+			return 8;
+		}
+	}
+}
+function RemoveField(Num)
+{
+	parentContainer = document.getElementById("GameBody");
+	childContainer = document.getElementById("p"+Num);
+	parentContainer.removeChild(childContainer);
+	Score += Multiplier;
+	document.getElementById("ScoreField").innerHTML = "Score: "+Score;
+	ElementLeft--;
+}
+function MoveBall()
+{
+	if((Ball["left"]<=GameField["left"])||(Ball["right"]>=GameField["right"]))
+	{
+		Ball_Speed_X = Ball_Speed_X*(-1);
+	}
+	if((Ball["top"]<=GameField["top"])||(Ball["bottom"]>=GameField["bottom"]))
+	{
+		Ball_Speed_Y = Ball_Speed_Y*(-1);
+	}
+	var c=0;
+	var d=0;
+	for(c=0; c<Element.length; c++)
+	{
+		if(Element[c]!=null)
+		{
+			d = Collusion(Ball, Element[c]);
+			switch(d)
+			{
+			case 1: //Left Collusion: X=-1; Y=Preserve
+				Ball_Speed_X = Math.abs(Ball_Speed_X);
+				Element[c]=null;
+				RemoveField(c);
+				break;
+			case 2: //Top Collusion: X=Preserve; Y=1
+				Ball_Speed_Y = Math.abs(Ball_Speed_Y);
+				Element[c]=null;
+				RemoveField(c);
+				break;
+			case 3: //Right Collusion: X=1; Y=Preserve;
+				Ball_Speed_X = (-1)*Math.abs(Ball_Speed_X);
+				Element[c]=null;
+				RemoveField(c);
+				break;
+			case 4: //Top Collusion: X=Preserve; Y=-1
+				Ball_Speed_Y = (-1)*Math.abs(Ball_Speed_Y);
+				Element[c]=null;
+				RemoveField(c);
+				break;
+			case 5: //TopLeft Collusion: X=1; Y=1
+				Ball_Speed_X = Math.abs(Ball_Speed_X);
+				Ball_Speed_Y = Math.abs(Ball_Speed_Y);
+				Element[c]=null;
+				RemoveField(c);
+				break;
+			case 6: //TopRight Collusion: X=-1; Y=1
+				Ball_Speed_X = (-1)*Math.abs(Ball_Speed_X);
+				Ball_Speed_Y = Math.abs(Ball_Speed_Y);
+				Element[c]=null;
+				RemoveField(c);
+				break;
+			case 7: //BottomLeft Collusion: X=1; Y=-1
+				Ball_Speed_X = Math.abs(Ball_Speed_X);
+				Ball_Speed_Y = (-1)*Math.abs(Ball_Speed_Y);
+				Element[c]=null;
+				RemoveField(c);
+				break;
+			case 8: //BottomRight Collusion: X=-1; Y=-1
+				Ball_Speed_X = (-1)*Math.abs(Ball_Speed_X);
+				Ball_Speed_Y = (-1)*Math.abs(Ball_Speed_Y);
+				Element[c]=null;
+				RemoveField(c);
+				break;
+			}
+		}
+	}
+	Ball["left"] += Ball_Speed_X*Multiplier;
+	Ball["top"] += Ball_Speed_Y*Multiplier;
+	Ball["right"] = Ball["left"]+Ball["width"];
+	Ball["bottom"] = Ball["top"]+Ball["height"];
+	document.getElementById("Ball").style.left = Math.round(Ball["left"])+"px";
+	document.getElementById("Ball").style.top = Math.round(Ball["top"])+"px";
+	if(Ball["bottom"]>=(Board["top"]+1))
+	{
+		var BallXCenter = Ball["left"]+(Ball["width"]/2);
+		if((BallXCenter>Board["left"])&&(BallXCenter<Board["right"]))
+		{
+			if(ElementLeft==0)
+			{
+				var elpos_x = GameField["left"]+25;
+				var elpos_y = GameField["top"]+30;
+				var elholder = null;
+				for(Element_si=1; Element_si<=98; Element_si++)
+				{
+					Element[Element_si-1] = Array("left", "top", "right", "bottom", "width", "height");
+					elholder = document.createElement("div");
+					elholder.setAttribute("id", "p"+(Element_si-1));
+					elholder.style.backgroundColor = "#009900";
+					elholder.style.overflow = "visible";
+					elholder.style.position = "absolute";
+					elholder.style.width="30px";
+					elholder.style.height="15px";
+					elholder.style.left = elpos_x+"px";
+					elholder.style.top = elpos_y+"px";
+					elholder.innerHTML = "<img src=\"tuhla.png\" alt=\"[PARTICLE]\" />";
+					Element[Element_si-1]["left"] = elpos_x;
+					Element[Element_si-1]["top"] = elpos_y;
+					Element[Element_si-1]["width"] = 30;
+					Element[Element_si-1]["height"] = 15;
+					Element[Element_si-1]["right"] = elpos_x+30;
+					Element[Element_si-1]["bottom"] = elpos_y+15;
+					if((Element_si%14==0)&&(Element_si!=0))
+					{
+						elpos_x = GameField["left"]+25;
+						elpos_y += 20;
+					}
+					else
+						elpos_x += 40;
+					document.getElementById("GameBody").insertBefore(elholder, null);
+				}
+				ElementLeft = 98;
+				Multiplier++;
+			}
+			BallXCenter = BallXCenter-Board["left"];
+			BallXCenter = BallXCenter-(Board["width"]/2);
+			BallXCenter = BallXCenter/(Board["width"]/2);
+			Ball_Speed_X = BallXCenter;
+			Ball_Speed_Y = Math.cos(Math.asin(BallXCenter));
+			Ball_Speed_Y = (-1)*Math.abs(Ball_Speed_Y);
+		}
+		else
+		{
+			Boards--;
+			document.getElementById("BoardsField").innerHTML = "Boards: "+Boards;
+			window.clearInterval(FrameTimerID);
+			FrameTimerID=0;
+			document.getElementById("ppButton").disabled = true;
+			if(Boards==0)
+			{
+				document.body.removeAttribute("onmousemove");
+				document.body.removeAttribute("onmouseup");
+				document.body.innerHTML = "<h1 align=\"center\">GAME OVER!</h1><br /><h1 align=\"center\">Score: "+Score+"</h1>";
+				return;
+			}
+			Ball_Attach=true;
+			Ball_Speed_X = -1;
+			Ball_Speed_Y = -1;
+			Ball["left"]=Board["left"]+Ball["width"];
+			Ball["top"]=Board["top"]-Ball["height"];
+			Ball["right"]=Ball["left"]+Ball["width"];
+			Ball["bottom"]=Ball["top"]+Ball["height"];
+			document.getElementById("Ball").style.left=Ball["left"]+"px";
+			document.getElementById("Ball").style.top=Ball["top"]+"px";
+			return;
+		}
+	}
+}
+function LunchBall()
+{
+	if(FrameTimerID==0)
+	{
+		Ball_Attach = false;
+		FrameTimerID = window.setInterval(MoveBall, 10);
+		document.getElementById("ppButton").disabled = false;
+	}
+}
+Paused = false;
+function PauseResume()
+{
+	if(!Paused)
+	{
+		window.clearInterval(FrameTimerID);
+		document.getElementById("ppButton").value = "Resume";
+		Paused=true;
+	}
+	else
+	{
+		FrameTimerID = window.setInterval(MoveBall, 10);
+		document.getElementById("ppButton").value = "Pause";
+		Paused=false;
+	}
+}
+</script>
+</head>
+<body bottommargin="0" topmargin="0" leftmargin="0" rightmargin="0" bgcolor="#666666" onload="PageLoad()" onmousemove="MoveBoard(event);" onmouseup="LunchBall();">
+<div align="center" style="height:100%; vertical-align:middle;">
+<table border="0" cellpadding="0" cellspacing="0" width="600px" height="475px" id="MainTable">
+<tr height="450px"><td width="600px" style="background-color:#000000; vertical-align:top; padding:0; margin:0" id="GameBody" align="left">
+<div id="Board" style="overflow:visible; position:relative; background-color:#FFFFFF; width:150px; height:15px; top:430px; left:0px;"><img src="board.png" alt="[BOARD]" /></div>
+<div id="Ball" style="overflow:visible; position:relative; background-color:#A0A0A0; width:15px; height:15px; top:400px; left:15px;"><img src="ball.png" alt="[BALL]" /></div>
+</td></tr>
+<tr height="1px"><td width="100%" style="background-color:#FF0000"></td></tr>
+<tr height="24px"><td width="100%" style="background-color:#000000; color:#FFFFFF" id="GameScore">
+<table cellpadding="0" cellspacing="0" border="0" width="100%">
+<tr>
+<td id="ScoreField" width="25%" align="left">Score: 0</td>
+<td id="ScoreField" width="50%" align="center">Created By Masterkiller [Illuminati]</td>
+<td id="BoardsField" width="25%" align="right">Boards: 3</td>
+</tr>
+</table>
+</td></tr>
+</table>
+</div>
+<br />
+<p align="center" style="font-size:-2">Game expirience may change during the play!</p>
+<div align="center"><input type="button" value="Pause" id="ppButton" onmouseup="PauseResume();" disabled="disabled" /></div>
+</body>
+</html>
