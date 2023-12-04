@@ -2,6 +2,10 @@ import { float32 } from '../../float.js';
 import { Matrix3x3, Vector3D, cross, mul, neg, normalize, sub, length, div, add, Vector2D } from '../../math/index.js';
 import WebGLScene from '../../webgl-scene.js';
 
+const symbols = {
+    wasPassive: Symbol('wasPassive')
+};
+
 const events = {
     pointerLockChange: Symbol('pointerLockChange'),
     controlMouseMove: Symbol('controlMouseMove'),
@@ -67,9 +71,12 @@ export default class FirstPersonScene extends WebGLScene {
         if (document.pointerLockElement === gl.screen) {
             gl.screen.addEventListener('control.mouse.move', context[events.controlMouseMove], { passive: true });
             gl.screen.addEventListener('control.keyboard.move', context[events.controlKeyboardMove], { passive: true });
+            gl.screen[symbols.wasPassive] = gl.screen.passive;
+            gl.screen.passive = false;
         } else {
             gl.screen.removeEventListener('control.mouse.move', context[events.controlMouseMove]);
             gl.screen.removeEventListener('control.keyboard.move', context[events.controlKeyboardMove]);
+            gl.screen.passive = false;
         }
     }
 

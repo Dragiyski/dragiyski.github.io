@@ -1,6 +1,6 @@
 /* eslint-disable array-element-newline */
 import createProgram from '../../lib/gl-program.js';
-import { dot_vector_vector } from '../../lib/math.js';
+import { dot } from '../../lib/math/index.js';
 import { loadTextFile } from '../../lib/utils.js';
 import { endFrameTimeMeasure } from '../../lib/webgl-frame-time.js';
 import FirstPersonScene from '../../lib/webgl/first-person/scene.js';
@@ -192,10 +192,10 @@ export default class Scene extends FirstPersonScene {
             program.uniform.screen_origin?.setArray?.(this.camera.screen.origin);
             program.uniform.screen_right?.setArray?.(this.camera.screen.right);
             program.uniform.screen_up?.setArray?.(this.camera.screen.up);
-            program.uniform.dot_screen_normal_screen_origin?.setValue?.(dot_vector_vector(this.camera.state.forward, this.camera.screen.origin));
-            program.uniform.dot_screen_normal_camera_origin?.setValue?.(dot_vector_vector(this.camera.state.forward, this.camera.state.origin));
-            program.uniform.screen_right_2?.setValue?.(dot_vector_vector(this.camera.screen.right, this.camera.screen.right));
-            program.uniform.screen_up_2?.setValue?.(dot_vector_vector(this.camera.screen.up, this.camera.screen.up));
+            program.uniform.dot_screen_normal_screen_origin?.setValue?.(dot(this.camera.state.forward, this.camera.screen.origin));
+            program.uniform.dot_screen_normal_camera_origin?.setValue?.(dot(this.camera.state.forward, this.camera.state.origin));
+            program.uniform.screen_right_2?.setValue?.(dot(this.camera.screen.right, this.camera.screen.right));
+            program.uniform.screen_up_2?.setValue?.(dot(this.camera.screen.up, this.camera.screen.up));
             gl.bindVertexArray(context.quad_vao);
             gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_BYTE, 0);
             // gl.finish();
@@ -246,10 +246,10 @@ export default class Scene extends FirstPersonScene {
             program.uniform.screen_origin?.setArray?.(this.camera.screen.origin);
             program.uniform.screen_right?.setArray?.(this.camera.screen.right);
             program.uniform.screen_up?.setArray?.(this.camera.screen.up);
-            program.uniform.dot_screen_normal_screen_origin?.setValue?.(dot_vector_vector(this.camera.state.forward, this.camera.screen.origin));
-            program.uniform.dot_screen_normal_camera_origin?.setValue?.(dot_vector_vector(this.camera.state.forward, this.camera.state.origin));
-            program.uniform.screen_right_2?.setValue?.(dot_vector_vector(this.camera.screen.right, this.camera.screen.right));
-            program.uniform.screen_up_2?.setValue?.(dot_vector_vector(this.camera.screen.up, this.camera.screen.up));
+            program.uniform.dot_screen_normal_screen_origin?.setValue?.(dot(this.camera.state.forward, this.camera.screen.origin));
+            program.uniform.dot_screen_normal_camera_origin?.setValue?.(dot(this.camera.state.forward, this.camera.state.origin));
+            program.uniform.screen_right_2?.setValue?.(dot(this.camera.screen.right, this.camera.screen.right));
+            program.uniform.screen_up_2?.setValue?.(dot(this.camera.screen.up, this.camera.screen.up));
             gl.bindVertexArray(context.quad_vao);
             gl.enable(gl.RASTERIZER_DISCARD);
             gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, context.quad_feedback_buffer);
