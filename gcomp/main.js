@@ -255,7 +255,7 @@ const Main = {
         commandEncoder.copyBufferToTexture({
             buffer: this.memoryBuffer,
             offset: 256 * 4,
-            bytesPerRow: width * 4,
+            bytesPerRow: (Math.ceil(width / 64) * 64) * 4,
             rowsPerImage: height
         }, {
             texture: this.context.getCurrentTexture()

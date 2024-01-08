@@ -19,9 +19,10 @@ fn main() {
         }
         let this_y = id / width;
         let this_x = id % width;
+        let row_size = (width / 64 + u32(width % 64 > 0)) * 64;
         let red = f32(this_x) / f32(width);
         let green = f32(this_y) / f32(height);
         let color = pack4x8unorm(vec4<f32>(red, green, 0.0, 1.0));
-        atomicStore(&memory[256 + id], color);
+        atomicStore(&memory[256 + this_y * row_size + this_x], color);
     }
 }
