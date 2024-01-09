@@ -4,7 +4,7 @@
         <meta charset="UTF-8"/>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <title>G-Comp: General Computation Raytracing</title>
-        <script type="module" src="main.js"></script>
+        <!-- <script type="module" src="main.js"></script> -->
         <style type="text/css">
             body {
                 margin: 0;
@@ -17,24 +17,37 @@
                 background-color: #fff;
             }
 
+            * {
+                flex: 0 0 auto;
+            }
+
+            #app {
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                display: flex;
+                flex-flow: column nowrap;
+                max-width: 100vw;
+                max-height: 100vh;
+            }
+
+            .render-area {
+                flex: 1 1 auto;
+                position: relative;
+            }
+
             #screen {
                 position: absolute;
                 top: 0;
                 left: 0;
                 right: 0;
                 bottom: 0;
+                margin: 0;
+                padding: 0;
                 width: 100%;
                 height: 100%;
-                display: flex;
-                flex-flow: row nowrap;
-                align-items: center;
-                justify-content: center;
-            }
-
-            #frame-info {
-                position: fixed;
-                top: 1em;
-                left: 1em;
             }
 
             .debug-info {
@@ -45,10 +58,31 @@
                 font: bold 12pt monospace;
                 padding: 1em;
             }
+
+            .header {
+                display: flex;
+                flex-flow: row nowrap;
+                justify-content: space-between;
+                align-items: center;
+                padding: 0.8em;
+                background-color: #CCC;
+            }
         </style>
     </head>
     <body>
-        <canvas id="screen"></canvas>
-        <div id="frame-info" class="debug-info"></div>
+        <div id="app">
+            <header class="header">
+                <div class="header-title">
+                    <div id="frame-info" class="debug-info"></div>
+                </div>
+                <div class="header-control">
+                    <button type="button" id="generate-frame">Generate Frame</button>
+                    <button type="button" id="toggle-animation">Toggle Animation</button>
+                </div>
+            </header>
+            <div class="render-area">
+                <canvas id="screen"></canvas>
+            </div>
+        </div>
     </body>
 </html>
