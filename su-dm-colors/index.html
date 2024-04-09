@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8"/>
+		<title>Find colors in image</title>
+		<link rel="stylesheet" type="text/css" href="/stylesheets/style.css"/>
+		<script type="text/javascript" src="/javascripts/main.js"></script>
+	</head>
+	<body>
+		<header>
+			<div id="menu">
+				<table>
+					<tr>
+						<td class="link">
+							<a href="javascript:void(0);" id="link_image_select">
+								<label for="image_select">Select</label>
+							</a>
+						</td>
+						<td class="text">
+							<input type="file" id="image_select"/>
+							<span class="empty" id="image_select_text">No image selected</span>
+						</td>
+						<td class="threshold">
+							<label for="threshold">Threshold:</label>
+							<input type="number" min="1" max="256" step="1" value="64" id="threshold"/>
+						</td>
+						<td class="link">
+							<a id="image_run" class="disabled" href="javascript:void(0);">Run</a>
+						</td>
+						<td class="link">
+							<a id="image_cancel" class="disabled" href="javascript:void(0);">Cancel</a>
+						</td>
+					</tr>
+				</table>
+			</div>
+		</header>
+		<div id="color_list">
+			<div class="content">
+				<table class="color-table" id="color_table">
+					<tr>
+						<td></td>
+					</tr>
+				</table>
+			</div>
+			<div class="progress"></div>
+			<div class="loading"><img src="/images/ajax-loader.gif" alt="" /><span>Loading...</span></div>
+			<div class="bottom-border"></div>
+		</div>
+		<section id="preview">
+			<div class="description">
+				<p class="title text">No image opened</p>
+				<hr class="title-bar"/>
+				<p class="text">Select file pressing CTRL+O.</p>
+
+				<p class="text">Select file using the top menu.</p>
+			</div>
+			<div class="error">
+				<p class="title text">No image opened</p>
+				<hr class="title-bar"/>
+				<p class="message"></p>
+			</div>
+		</section>
+	</body>
+</html>

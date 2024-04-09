@@ -1,0 +1,307 @@
+html, body {
+	padding: 0;
+	margin: 0;
+}
+
+body {
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+}
+
+#menu {
+	height: 36px;
+	padding: 0;
+	background: linear-gradient(#303030 0%, #606060 25%, #202020 100%);
+	background: -khtml-linear-gradient(#303030 0%, #606060 25%, #202020 100%);
+	background: -webkit-linear-gradient(#303030 0%, #606060 25%, #202020 100%);
+	background: -moz-linear-gradient(#303030 0%, #606060 25%, #202020 100%);
+	background: -ms-gradient(#303030 0%, #606060 25%, #202020 100%);
+	background: -o-gradient(#303030 0%, #606060 25%, #202020 100%);
+	background-color: #CCC;
+	position: relative;
+}
+
+#menu table {
+	width: 100%;
+	border: 0;
+	padding: 0;
+	margin: 0;
+	border-collapse: collapse;
+}
+
+#menu table td {
+	height: 26px;
+	font: 12pt/36px "Helvetica Neue Light", "Lucida Grande", "Calibri", "Arial", sans-serif;
+}
+
+#menu table td.link a {
+	display: block;
+	height: 36px;
+	padding: 0 10px;
+}
+
+#menu table td.link a * {
+	cursor: pointer;
+}
+
+#menu table td.text {
+	padding: 0 10px;
+	width: 100%;
+}
+
+#menu table td.threshold {
+	min-width: 160px;
+}
+
+#threshold {
+	background-color: #CCC;
+	border: 1px solid #666;
+	border-radius: 4px;
+	-webkit-border-radius: 4px;
+	-khtml-border-radius: 4px;
+	-moz-border-radius: 4px;
+	-ms-border-radius: 4px;
+	-o-border-radius: 4px;
+}
+
+#menu table td.link {
+	min-width: 80px;
+	text-align: center;
+	vertical-align: middle;
+}
+
+#menu table td {
+	text-align: left;
+	vertical-align: middle;
+}
+
+#menu table td, #menu table td a, #menu table td a:visited, #menu table td a:active {
+	color: #CCC;
+	text-decoration: none;
+	font-weight: bold;
+}
+
+#menu table td.link a:hover, #menu table td.link a:active {
+	background-color: rgba(255, 255, 255, 0.2);
+}
+
+#menu table td {
+	border-left: 1px solid rgba(255, 255, 255, 0.05);
+	border-right: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+#menu table td a.disabled,
+#menu table td a.disabled:link,
+#menu table td a.disabled:hover,
+#menu table td a.disabled:visited,
+#menu table td a.disabled:active {
+	color: #CCC;
+	text-decoration: none;
+	font-weight: bold;
+	background-color: transparent;
+	opacity: 0.5;
+}
+
+#menu ul {
+	list-style: none outside none;
+	padding: 0;
+	margin: 0;
+}
+
+#menu ul > li {
+	float: left;
+	height: 26px;
+	font: 12pt/26px "Helvetica Neue Light", "Lucida Grande", "Calibri", "Arial", sans-serif;
+}
+
+#menu ul > li.link a, #menu ul > li.text {
+	padding: 4px 10px;
+}
+
+#menu ul > li.link a {
+	display: list-item;
+}
+
+#menu ul > li, #menu ul > li a, #menu ul > li a:link, #menu ul > li a:hover, #menu ul > li a:visited, #menu ul > li:active {
+	color: #CCC;
+	text-decoration: none;
+	font-weight: bold;
+}
+
+#menu ul > li.link a:hover, #menu ul > li.link a:active {
+	background-color: rgba(255, 255, 255, 0.2);
+}
+
+#menu ul > li.expand {
+	width: 100%;
+}
+
+#image_select_text {
+	font: 10pt/26px "Helvetica Neue Light", "Lucida Grande", "Calibri", "Arial", sans-serif;
+	color: #999;
+}
+
+#image_select_text .empty {
+	font-style: italic;
+}
+
+#color_list {
+	position: relative;
+}
+
+#color_list > .content {
+	height: 128px;
+	padding: 10px;
+	background-color: black;
+	overflow: auto;
+}
+
+#color_list > .content > table.color-table {
+	border: 0;
+	padding: 0;
+	margin: 0;
+	border-collapse: separate;
+	border-spacing: 10px;
+	height: 100%;
+}
+
+#color_list > .content > table.color-table td.color-cell {
+	padding: 0;
+	vertical-align: middle;
+	text-align: center;
+	border: 1px solid #999;
+}
+
+#color_list > .content > table.color-table td.color-cell > .color {
+	display: block;
+	width: 256px;
+	height: 100%;
+	color: white;
+	text-shadow: -1px -1px 1px black, 1px -1px 1px black, -1px 1px 1px black, 1px 1px 1px black;
+}
+
+#color_list > .content > table.color-table td.color-cell > .color table.text {
+	border: 0;
+	padding: 0;
+	margin: 0;
+	width: 100%;
+	height: 100%;
+}
+
+#color_list > .content > table.color-table td.color-cell > .color table.text td {
+	text-align: center;
+	vertical-align: middle;
+	color: white;
+	text-shadow: -1px -1px 1px black, 1px -1px 1px black, -1px 1px 1px black, 1px 1px 1px black;
+}
+
+#color_list > .content > .color-frame {
+	height: 96px;
+	width: 256px;
+	background-color: white;
+}
+
+#color_list > .loading {
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 8px;
+	margin: auto;
+	width: 146px;
+	height: 32px;
+	font: 18pt/32px  "Helvetica Neue Light", "Lucida Grande", "Calibri", "Arial", sans-serif;
+	color: white;
+	text-shadow: -1px -1px 1px black, 1px -1px 1px black, -1px 1px 1px black, 1px 1px 1px black;
+	font-variant: small-caps;
+	background-color: black;
+	padding: 10px;
+	border: 1px solid #666;
+	display: none;
+}
+
+#color_list > .loading > img {
+	margin-right: 10px;
+	vertical-align: middle;
+}
+
+#color_list > .loading > span {
+	vertical-align: middle;
+}
+
+#color_list > .progress {
+	position: absolute;
+	top: 0;
+	left: 0;
+	bottom: 8px;
+	background-color: #333;
+	display: none;
+}
+
+#color_list > .bottom-border {
+	height: 8px;
+	background: linear-gradient(#202020 0%, #A0A0A0 10%, #505050 20%, #505050 80%, #101010 100%);
+}
+
+#preview {
+	background-color: #808080;
+	position: absolute;
+	top: 192px;
+	bottom: 0;
+	left: 0;
+	right: 0;
+}
+
+#preview > .description, #preview > .error {
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	max-width: 320px;
+	height: min-content;
+	height: -webkit-min-content;
+	height: -khtml-min-content;
+	height: -moz-min-content;
+	height: -ms-min-content;
+	height: -o-min-content;
+	max-height: 320px;
+	margin: auto;
+	display: none;
+}
+
+#preview > .description hr, #preview > .error hr {
+	height: 2px;
+	border: 0;
+	outline: 0;
+	background: linear-gradient(#606060, #A0A0A0);
+	margin: 10px 0;
+}
+
+#preview > .description .title, #preview > .error .title {
+	font: 18pt "Helvetica Neue Light", "Lucida Grande", "Calibri", "Arial", sans-serif;
+	color: #333;
+	margin: 10px;
+}
+
+#preview > .description .text, #preview > .error .text {
+	margin: 8px 10px;
+	font: 12pt "Helvetica Neue Light", "Lucida Grande", "Calibri", "Arial", sans-serif;
+	color: #333;
+}
+
+#preview > .content {
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	margin: auto;
+}
+
+#image_select {
+	display: none;
+}
