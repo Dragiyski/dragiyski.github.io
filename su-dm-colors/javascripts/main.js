@@ -381,7 +381,7 @@
 	};
 	ImageController.prototype.getWorker = function() {
 		if(!(this._worker instanceof Worker)) {
-			this._worker = new Worker('/javascripts/thread_colors.js');
+			this._worker = new Worker(new URL('javascripts/thread_colors.js', document.location.href));
 			this._worker.addEventListener('message', this._listenerWorkerMessage = this.listenerWorkerMessage.bind(this));
 		}
 		return this._worker;
