@@ -1,0 +1,25 @@
+<!doctype html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+    <head>
+        <meta charset="UTF-8"/>
+        <link rel="icon" href="favicon.ico"/>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+        <script>
+            if ('serviceWorker' in navigator && document.location.protocol === 'https:') {
+                window.addEventListener('load', () => {
+                    navigator.serviceWorker.register(new URL('service-worker.js', document.location.href)).then(registration => {
+                        console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                    }, err => {
+                        console.log('ServiceWorker registration failed: ', err);
+                    });
+                });
+            }
+        </script>
+        <title>Vault</title>
+      <script type="module" crossorigin src="/assets/main-AVFmBMGc.js"></script>
+      <link rel="stylesheet" crossorigin href="/assets/main-Dj9of6rq.css">
+    </head>
+    <body>
+    <div id="app"></div>
+    </body>
+</html>
